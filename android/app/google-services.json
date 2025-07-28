@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "572715423929",
+    "project_id": "flutter-group-project-3541f",
+    "storage_bucket": "flutter-group-project-3541f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:572715423929:android:a758932ec466f8bcfbe368",
+        "android_client_info": {
+          "package_name": "com.example.flutter_group_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAf-FNhd5nD2EZ787h9lj2afbk6ATZgY2Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:572715423929:android:377d729f52aeb5a6fbe368",
+        "android_client_info": {
+          "package_name": "com.flutterproject.ecom"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAf-FNhd5nD2EZ787h9lj2afbk6ATZgY2Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
