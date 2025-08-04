@@ -41,30 +41,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> fetchProductsFromRealtimeDB() async {
     try {
-      // Use the specific database instance with URL
       final database = FirebaseDatabase.instanceFor(
         app: Firebase.app(),
         databaseURL:
             'https://flutter-group-project-3541f-default-rtdb.firebaseio.com',
       );
-      final ref = database.ref();
 
-      // Get data from root (not from 'products' child)
+      final ref = database.ref().child('products');
       final snapshot = await ref.once();
       final rawData = snapshot.snapshot.value;
 
-      print('Raw data: $rawData');
-
       if (rawData == null) {
-        print('No data found in database');
+        print('No products found.');
         return;
       }
 
       if (rawData is List) {
-        print('Data is a List with ${rawData.length} items');
-        final products = rawData
-            .where((item) => item != null) // skip nulls
-            .map((item) {
+        final products = rawData.where((item) => item != null).map((item) {
           final map = Map<String, dynamic>.from(item as Map);
           return Product.fromMap(map, map['id'] ?? '');
         }).toList();
@@ -72,33 +65,30 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _allProducts = products;
         });
-        print('Successfully loaded ${products.length} products');
+
+        print('Successfully loaded ${products.length} products from Firebase');
       } else {
-        print('Unexpected data format: $rawData');
-        print('Data type: ${rawData.runtimeType}');
+        print('Unexpected data format at "products" node.');
       }
     } catch (e) {
-      print('Error fetching products from Realtime DB: $e');
+      print('Error fetching products: $e');
     }
   }
 
   List<Product> get filteredProducts {
     List<Product> filtered = _allProducts;
 
-    // Filter by category
     if (selectedCategory != 'All') {
       filtered = filtered
           .where((product) => product.category == selectedCategory)
           .toList();
     }
 
-    // Filter by search query
     if (searchQuery.isNotEmpty) {
       filtered = filtered.where((product) {
-        final name = product.name.toLowerCase();
-        final description = product.description.toLowerCase();
         final query = searchQuery.toLowerCase();
-        return name.contains(query) || description.contains(query);
+        return product.name.toLowerCase().contains(query) ||
+            product.description.toLowerCase().contains(query);
       }).toList();
     }
 
@@ -119,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F0), // Warm cream background
+      backgroundColor: const Color(0xFFF5F5F0),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -150,7 +140,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          // Search bar
           Container(
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -167,9 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: TextField(
               controller: _searchController,
               onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
+                setState(() => searchQuery = value);
               },
               decoration: InputDecoration(
                 hintText: 'Search for crafts...',
@@ -183,10 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 suffixIcon: searchQuery.isNotEmpty
                     ? IconButton(
                         onPressed: _clearSearch,
-                        icon: const Icon(
-                          Icons.clear,
-                          color: Color(0xFF8B4513),
-                        ),
+                        icon: const Icon(Icons.clear, color: Color(0xFF8B4513)),
                       )
                     : null,
                 border: InputBorder.none,
@@ -201,8 +185,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
-          // Category chips with warm brown theme
           Container(
             height: 60,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -231,17 +213,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: const Color(0xFF8B4513).withOpacity(0.3),
                     ),
                     onSelected: (_) {
-                      setState(() {
-                        selectedCategory = category;
-                      });
+                      setState(() => selectedCategory = category);
                     },
                   ),
                 );
               },
             ),
           ),
-
-          // Results info (optional - shows search/filter status)
           if (searchQuery.isNotEmpty || selectedCategory != 'All')
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -254,28 +232,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontSize: 14,
                     ),
                   ),
-                  if (searchQuery.isNotEmpty || selectedCategory != 'All')
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          searchQuery = '';
-                          selectedCategory = 'All';
-                          _searchController.clear();
-                        });
-                      },
-                      child: const Text(
-                        'Clear filters',
-                        style: TextStyle(
-                          color: Color(0xFF8B4513),
-                          fontSize: 14,
-                        ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        searchQuery = '';
+                        selectedCategory = 'All';
+                        _searchController.clear();
+                      });
+                    },
+                    child: const Text(
+                      'Clear filters',
+                      style: TextStyle(
+                        color: Color(0xFF8B4513),
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
-
-          // Products grid
           Expanded(
             child: filteredProducts.isEmpty
                 ? Center(
@@ -300,25 +274,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        if (searchQuery.isNotEmpty || selectedCategory != 'All')
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  searchQuery = '';
-                                  selectedCategory = 'All';
-                                  _searchController.clear();
-                                });
-                              },
-                              child: const Text(
-                                'Clear filters',
-                                style: TextStyle(
-                                  color: Color(0xFF8B4513),
-                                ),
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                   )
@@ -327,10 +282,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      mainAxisExtent: 300, // Increased height for buttons
+                      mainAxisExtent: 300,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
-                      childAspectRatio: 0.75, // Taller cards
+                      childAspectRatio: 0.75,
                     ),
                     itemCount: filteredProducts.length,
                     itemBuilder: (context, index) {
