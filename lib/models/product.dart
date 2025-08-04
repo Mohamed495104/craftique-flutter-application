@@ -25,4 +25,15 @@ class Product {
       rating: (map['rating'] ?? 0).toDouble(),
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'price': price,
+      'category': category,
+      'rating': rating,
+    };
+  }
 }
