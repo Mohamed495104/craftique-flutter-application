@@ -1,9 +1,11 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-
+import 'package:provider/provider.dart';
 import '../models/product.dart';
 import '../widgets/product_card.dart';
+import '../providers/wishlist.dart';
+import '../services/firebase_options.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String selectedCategory = 'All';
   String searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  DatabaseReference? _database;
 
   final List<String> categories = [
     'All',
@@ -30,45 +33,38 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    fetchProductsFromRealtimeDB();
+    _initializeFirebase();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  Future<void> fetchProductsFromRealtimeDB() async {
+  Future<void> _initializeFirebase() async {
     try {
-      final database = FirebaseDatabase.instanceFor(
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      _database = FirebaseDatabase.instanceFor(
         app: Firebase.app(),
         databaseURL:
             'https://flutter-group-project-3541f-default-rtdb.firebaseio.com',
-      );
+      ).ref();
+      await fetchProductsFromRealtimeDB();
+    } catch (e) {
+      print('Firebase init error: $e');
+    }
+  }
 
-      final ref = database.ref().child('products');
-      final snapshot = await ref.once();
+  Future<void> fetchProductsFromRealtimeDB() async {
+    if (_database == null) return;
+    try {
+      final snapshot = await _database!.child('products').once();
       final rawData = snapshot.snapshot.value;
-
-      if (rawData == null) {
-        print('No products found.');
-        return;
-      }
-
       if (rawData is List) {
         final products = rawData.where((item) => item != null).map((item) {
           final map = Map<String, dynamic>.from(item as Map);
           return Product.fromMap(map, map['id'] ?? '');
         }).toList();
-
         setState(() {
           _allProducts = products;
         });
-
-        print('Successfully loaded ${products.length} products from Firebase');
-      } else {
-        print('Unexpected data format at "products" node.');
       }
     } catch (e) {
       print('Error fetching products: $e');
@@ -85,11 +81,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (searchQuery.isNotEmpty) {
-      filtered = filtered.where((product) {
-        final query = searchQuery.toLowerCase();
-        return product.name.toLowerCase().contains(query) ||
-            product.description.toLowerCase().contains(query);
-      }).toList();
+      final query = searchQuery.toLowerCase();
+      filtered = filtered
+          .where((p) =>
+              p.name.toLowerCase().contains(query) ||
+              p.description.toLowerCase().contains(query))
+          .toList();
     }
 
     return filtered;
@@ -103,7 +100,70 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void logout() {
-    // FirebaseAuth.instance.signOut(); // optional
+    // FirebaseAuth.instance.signOut(); // Optional
+  }
+
+  // Custom wishlist icon widget with count (horizontal layout like old design)
+  Widget _buildWishlistIcon() {
+    return Consumer<WishlistProvider>(
+      builder: (context, wishlistProvider, child) {
+        final wishlistCount = wishlistProvider.wishlist.length;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.pushNamed(context, '/wishlist');
+          },
+          child: Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: wishlistCount > 0
+                  ? const Color(0xFF8B4513).withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              border: wishlistCount > 0
+                  ? Border.all(color: const Color(0xFF8B4513).withOpacity(0.3))
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  wishlistCount > 0 ? Icons.favorite : Icons.favorite_border,
+                  color: const Color(0xFF8B4513),
+                  size: 22,
+                ),
+                if (wishlistCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B4513),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$wishlistCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -122,13 +182,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.favorite_border,
-              color: Color(0xFF8B4513),
-            ),
-          ),
+          // Clean wishlist icon with horizontal count layout
+          _buildWishlistIcon(),
+
+          // Shopping cart icon
           IconButton(
             onPressed: () {},
             icon: const Icon(
@@ -140,6 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
+          // Search Box
           Container(
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -155,36 +213,27 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: TextField(
               controller: _searchController,
-              onChanged: (value) {
-                setState(() => searchQuery = value);
-              },
+              onChanged: (value) => setState(() => searchQuery = value),
               decoration: InputDecoration(
                 hintText: 'Search for crafts...',
-                hintStyle: TextStyle(
-                  color: const Color(0xFF8B4513).withOpacity(0.6),
-                ),
-                prefixIcon: const Icon(
-                  Icons.search,
-                  color: Color(0xFF8B4513),
-                ),
+                hintStyle:
+                    TextStyle(color: const Color(0xFF8B4513).withOpacity(0.6)),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF8B4513)),
                 suffixIcon: searchQuery.isNotEmpty
                     ? IconButton(
-                        onPressed: _clearSearch,
                         icon: const Icon(Icons.clear, color: Color(0xFF8B4513)),
+                        onPressed: _clearSearch,
                       )
                     : null,
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 15,
-                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               ),
-              style: const TextStyle(
-                color: Color(0xFF8B4513),
-                fontSize: 16,
-              ),
+              style: const TextStyle(color: Color(0xFF8B4513), fontSize: 16),
             ),
           ),
+
+          // Categories
           Container(
             height: 60,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -210,18 +259,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     selectedColor: const Color(0xFF8B4513),
                     backgroundColor: Colors.white.withOpacity(0.8),
                     side: BorderSide(
-                      color: const Color(0xFF8B4513).withOpacity(0.3),
-                    ),
-                    onSelected: (_) {
-                      setState(() => selectedCategory = category);
-                    },
+                        color: const Color(0xFF8B4513).withOpacity(0.3)),
+                    onSelected: (_) =>
+                        setState(() => selectedCategory = category),
                   ),
                 );
               },
             ),
           ),
+
+          // Filters Summary
           if (searchQuery.isNotEmpty || selectedCategory != 'All')
-            Container(
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
@@ -242,14 +291,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     child: const Text(
                       'Clear filters',
-                      style: TextStyle(
-                        color: Color(0xFF8B4513),
-                      ),
+                      style: TextStyle(color: Color(0xFF8B4513)),
                     ),
                   ),
                 ],
               ),
             ),
+
+          // Product Grid
           Expanded(
             child: filteredProducts.isEmpty
                 ? Center(

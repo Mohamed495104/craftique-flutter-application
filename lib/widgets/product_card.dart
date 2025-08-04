@@ -1,24 +1,20 @@
 import 'package:flutter/material.dart';
-
+import 'package:provider/provider.dart';
 import '../models/product.dart';
+import '../providers/wishlist.dart';
 
-class ProductCard extends StatefulWidget {
+class ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback onTap;
 
   const ProductCard({super.key, required this.product, required this.onTap});
 
   @override
-  State<ProductCard> createState() => _ProductCardState();
-}
-
-class _ProductCardState extends State<ProductCard> {
-  bool isWishlisted = false;
-
-  @override
   Widget build(BuildContext context) {
+    final wishlistProvider = Provider.of<WishlistProvider>(context);
+
     return GestureDetector(
-      onTap: widget.onTap,
+      onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -51,10 +47,27 @@ class _ProductCardState extends State<ProductCard> {
                     right: 8,
                     child: GestureDetector(
                       onTap: () {
-                        setState(() {
-                          isWishlisted = !isWishlisted;
-                        });
-                        // Add wishlist functionality here
+                        if (wishlistProvider.isInWishlist(product)) {
+                          wishlistProvider.removeFromWishlist(product);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  Text('${product.name} removed from wishlist'),
+                              backgroundColor: const Color(0xFF8B4513),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        } else {
+                          wishlistProvider.addToWishlist(product);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  Text('${product.name} added to wishlist'),
+                              backgroundColor: const Color(0xFF8B4513),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.all(8),
@@ -70,8 +83,10 @@ class _ProductCardState extends State<ProductCard> {
                           ],
                         ),
                         child: Icon(
-                          isWishlisted ? Icons.favorite : Icons.favorite_border,
-                          color: isWishlisted
+                          wishlistProvider.isInWishlist(product)
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: wishlistProvider.isInWishlist(product)
                               ? Colors.red
                               : const Color(0xFF8B4513),
                           size: 20,
@@ -90,9 +105,8 @@ class _ProductCardState extends State<ProductCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Product name
                     Text(
-                      widget.product.name,
+                      product.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -102,9 +116,8 @@ class _ProductCardState extends State<ProductCard> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // Price
                     Text(
-                      "\$${widget.product.price.toStringAsFixed(2)}",
+                      "\$${product.price.toStringAsFixed(2)}",
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -112,17 +125,14 @@ class _ProductCardState extends State<ProductCard> {
                       ),
                     ),
                     const Spacer(),
-                    // Add to cart button
                     SizedBox(
                       width: double.infinity,
                       height: 36,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          // Add to cart functionality here
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content:
-                                  Text('${widget.product.name} added to cart'),
+                              content: Text('${product.name} added to cart'),
                               backgroundColor: const Color(0xFF8B4513),
                               duration: const Duration(seconds: 2),
                             ),
@@ -161,10 +171,9 @@ class _ProductCardState extends State<ProductCard> {
   }
 
   Widget _buildImage() {
-    // Map all categories to their respective folders
     String categoryFolder;
 
-    switch (widget.product.category) {
+    switch (product.category) {
       case 'Paintings':
         categoryFolder = 'paintings';
         break;
@@ -181,45 +190,34 @@ class _ProductCardState extends State<ProductCard> {
         categoryFolder = 'miniature';
         break;
       default:
-        categoryFolder = widget.product.category.toLowerCase();
+        categoryFolder = product.category.toLowerCase();
     }
 
-    // Try JPG first
-    final jpgPath = 'assets/images/$categoryFolder/${widget.product.id}.jpg';
+    final jpgPath = 'assets/images/$categoryFolder/${product.id}.jpg';
 
     return Image.asset(
       jpgPath,
       fit: BoxFit.cover,
       width: double.infinity,
       errorBuilder: (context, error, stackTrace) {
-        // If JPG fails, try PNG
-        final pngPath =
-            'assets/images/$categoryFolder/${widget.product.id}.png';
-
+        final pngPath = 'assets/images/$categoryFolder/${product.id}.png';
         return Image.asset(
           pngPath,
           fit: BoxFit.cover,
           width: double.infinity,
           errorBuilder: (context, error2, stackTrace2) {
-            // If both JPG and PNG fail, show error widget
             return Container(
               color: const Color(0xFFF5F5F0),
               child: const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.image_not_supported,
-                      size: 40,
-                      color: Color(0xFF8B4513),
-                    ),
+                    Icon(Icons.image_not_supported,
+                        size: 40, color: Color(0xFF8B4513)),
                     SizedBox(height: 8),
                     Text(
                       'Image not available',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF8B4513),
-                      ),
+                      style: TextStyle(fontSize: 12, color: Color(0xFF8B4513)),
                     ),
                   ],
                 ),

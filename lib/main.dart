@@ -1,12 +1,15 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_group_project/models/product.dart';
 import 'package:flutter_group_project/screens/home_screen.dart';
 import 'package:flutter_group_project/screens/product_details_screen.dart';
 import 'package:flutter_group_project/screens/splash_screen.dart';
+import 'package:flutter_group_project/screens/wishlist_screen.dart';
 import 'package:flutter_group_project/services/firebase_options.dart';
 import 'package:flutter_group_project/utils/constants.dart';
+import 'package:flutter_group_project/providers/wishlist.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +23,14 @@ void main() async {
         'https://flutter-group-project-3541f-default-rtdb.firebaseio.com',
   );
 
-  runApp(const CraftiqueApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => WishlistProvider()),
+      ],
+      child: const CraftiqueApp(),
+    ),
+  );
 }
 
 class CraftiqueApp extends StatelessWidget {
@@ -48,6 +58,9 @@ class CraftiqueApp extends StatelessWidget {
         switch (routeName) {
           case '/home':
             return MaterialPageRoute(builder: (_) => const HomeScreen());
+
+          case '/wishlist':
+            return MaterialPageRoute(builder: (_) => const WishlistScreen());
 
           case '/product-details':
             final args = settings.arguments;
