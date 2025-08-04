@@ -14,6 +14,7 @@ dependencies:
   firebase_core: ^2.30.0
   firebase_auth: ^4.17.4
   cloud_firestore: ^4.9.3
+  provider: ^6.0.0
 
   # UI and utility
   google_fonts: ^6.1.0

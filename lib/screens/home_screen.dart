@@ -1,9 +1,11 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-
 import '../models/product.dart';
 import '../widgets/product_card.dart';
+import 'package:provider/provider.dart';
+import '../providers/wishlist.dart';
+import '../services/firebase_options.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String selectedCategory = 'All';
   String searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  DatabaseReference? _database;
 
   final List<String> categories = [
     'All',
@@ -30,7 +33,25 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    fetchProductsFromRealtimeDB();
+    _initializeFirebase();
+  }
+
+  Future<void> _initializeFirebase() async {
+    try {
+      print('Initializing Firebase in HomeScreen...');
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      _database = FirebaseDatabase.instanceFor(
+        app: Firebase.app(),
+        databaseURL:
+            'https://flutter-group-project-3541f-default-rtdb.firebaseio.com',
+      ).ref();
+      print('Firebase Database initialized successfully');
+      await fetchProductsFromRealtimeDB();
+    } catch (e) {
+      print('Error initializing Firebase in HomeScreen: $e');
+    }
   }
 
   @override
@@ -40,33 +61,45 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> fetchProductsFromRealtimeDB() async {
+    if (_database == null) {
+      print('Database not initialized');
+      return;
+    }
     try {
-      // Use the specific database instance with URL
-      final database = FirebaseDatabase.instanceFor(
-        app: Firebase.app(),
-        databaseURL:
-            'https://flutter-group-project-3541f-default-rtdb.firebaseio.com',
-      );
-      final ref = database.ref();
-
-      // Get data from root (not from 'products' child)
-      final snapshot = await ref.once();
+      print('Fetching products from Firebase at /products...');
+      final snapshot = await _database!.child('products').once();
       final rawData = snapshot.snapshot.value;
-
       print('Raw data: $rawData');
 
       if (rawData == null) {
-        print('No data found in database');
+        print('No data found at /products');
+        setState(() {
+          _allProducts = [];
+        });
         return;
       }
 
       if (rawData is List) {
         print('Data is a List with ${rawData.length} items');
         final products = rawData
-            .where((item) => item != null) // skip nulls
-            .map((item) {
-          final map = Map<String, dynamic>.from(item as Map);
-          return Product.fromMap(map, map['id'] ?? '');
+            .asMap()
+            .entries
+            .where((entry) => entry.value != null)
+            .map((entry) {
+          final index = entry.key;
+          final map = Map<String, dynamic>.from(entry.value as Map);
+          return Product.fromMap(map, map['id'] ?? index.toString());
+        }).toList();
+
+        setState(() {
+          _allProducts = products;
+        });
+        print('Successfully loaded ${products.length} products');
+      } else if (rawData is Map) {
+        print('Data is a Map with ${rawData.length} items');
+        final products = rawData.entries.map((entry) {
+          final map = Map<String, dynamic>.from(entry.value as Map);
+          return Product.fromMap(map, map['id'] ?? entry.key);
         }).toList();
 
         setState(() {
@@ -76,23 +109,27 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         print('Unexpected data format: $rawData');
         print('Data type: ${rawData.runtimeType}');
+        setState(() {
+          _allProducts = [];
+        });
       }
     } catch (e) {
       print('Error fetching products from Realtime DB: $e');
+      setState(() {
+        _allProducts = [];
+      });
     }
   }
 
   List<Product> get filteredProducts {
     List<Product> filtered = _allProducts;
 
-    // Filter by category
     if (selectedCategory != 'All') {
       filtered = filtered
           .where((product) => product.category == selectedCategory)
           .toList();
     }
 
-    // Filter by search query
     if (searchQuery.isNotEmpty) {
       filtered = filtered.where((product) {
         final name = product.name.toLowerCase();
@@ -113,13 +150,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void logout() {
-    // FirebaseAuth.instance.signOut(); // optional
+    // FirebaseAuth.instance.signOut(); // Uncomment to enable logout
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F0), // Warm cream background
+      backgroundColor: const Color(0xFFF5F5F0),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -132,12 +169,38 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.favorite_border,
-              color: Color(0xFF8B4513),
-            ),
+          Stack(
+            children: [
+              IconButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/wishlist');
+                },
+                icon: const Icon(
+                  Icons.favorite,
+                  color: Color(0xFF8B4513),
+                ),
+              ),
+              if (Provider.of<WishlistProvider>(context).wishlist.isNotEmpty)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${Provider.of<WishlistProvider>(context).wishlist.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
           IconButton(
             onPressed: () {},
@@ -150,7 +213,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          // Search bar
           Container(
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -201,8 +263,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
-          // Category chips with warm brown theme
           Container(
             height: 60,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -240,8 +300,6 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
-
-          // Results info (optional - shows search/filter status)
           if (searchQuery.isNotEmpty || selectedCategory != 'All')
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -274,8 +332,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-
-          // Products grid
           Expanded(
             child: filteredProducts.isEmpty
                 ? Center(
@@ -327,10 +383,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      mainAxisExtent: 300, // Increased height for buttons
+                      mainAxisExtent: 300,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
-                      childAspectRatio: 0.75, // Taller cards
+                      childAspectRatio: 0.75,
                     ),
                     itemCount: filteredProducts.length,
                     itemBuilder: (context, index) {
