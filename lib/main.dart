@@ -1,15 +1,16 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_group_project/models/product.dart';
+import 'package:flutter_group_project/providers/wishlist.dart';
+import 'package:flutter_group_project/screens/auth_screen.dart'; // ✅ NEW
 import 'package:flutter_group_project/screens/home_screen.dart';
 import 'package:flutter_group_project/screens/product_details_screen.dart';
 import 'package:flutter_group_project/screens/splash_screen.dart';
 import 'package:flutter_group_project/screens/wishlist_screen.dart';
 import 'package:flutter_group_project/services/firebase_options.dart';
 import 'package:flutter_group_project/utils/constants.dart';
-import 'package:flutter_group_project/providers/wishlist.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,6 +62,9 @@ class CraftiqueApp extends StatelessWidget {
 
           case '/wishlist':
             return MaterialPageRoute(builder: (_) => const WishlistScreen());
+
+          case '/auth': // ✅ NEW ROUTE
+            return MaterialPageRoute(builder: (_) => const AuthScreen());
 
           case '/product-details':
             final args = settings.arguments;

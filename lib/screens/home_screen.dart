@@ -1,11 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/product.dart';
-import '../widgets/product_card.dart';
 import '../providers/wishlist.dart';
 import '../services/firebase_options.dart';
+import '../widgets/product_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -99,11 +101,37 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void logout() {
-    // FirebaseAuth.instance.signOut(); // Optional
+  void logout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Confirm Logout"),
+        content: const Text("Are you sure you want to logout?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Logout"),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true) {
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/auth');
+      }
+    }
   }
 
-  // Custom wishlist icon widget with count (horizontal layout like old design)
   Widget _buildWishlistIcon() {
     return Consumer<WishlistProvider>(
       builder: (context, wishlistProvider, child) {
@@ -182,10 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          // Clean wishlist icon with horizontal count layout
           _buildWishlistIcon(),
-
-          // Shopping cart icon
           IconButton(
             onPressed: () {},
             icon: const Icon(
@@ -197,7 +222,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          // Search Box
           Container(
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -232,8 +256,6 @@ class _HomeScreenState extends State<HomeScreen> {
               style: const TextStyle(color: Color(0xFF8B4513), fontSize: 16),
             ),
           ),
-
-          // Categories
           Container(
             height: 60,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -267,8 +289,6 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
-
-          // Filters Summary
           if (searchQuery.isNotEmpty || selectedCategory != 'All')
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -297,8 +317,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-
-          // Product Grid
           Expanded(
             child: filteredProducts.isEmpty
                 ? Center(
