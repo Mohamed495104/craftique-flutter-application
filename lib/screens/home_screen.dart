@@ -363,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.pushNamed(
                             context,
                             '/product-details',
-                            arguments: product,
+                            arguments: product.id,
                           );
                         },
                       );
