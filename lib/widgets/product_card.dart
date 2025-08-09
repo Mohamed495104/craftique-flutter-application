@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/product.dart';
+import '../providers/cart_provider.dart';
 import '../providers/wishlist.dart';
 
 class ProductCard extends StatelessWidget {
@@ -11,7 +13,8 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wishlistProvider = Provider.of<WishlistProvider>(context);
+    final wishlistProvider =
+        Provider.of<WishlistProvider>(context, listen: true);
 
     return GestureDetector(
       onTap: onTap,
@@ -50,21 +53,19 @@ class ProductCard extends StatelessWidget {
                         if (wishlistProvider.isInWishlist(product)) {
                           wishlistProvider.removeFromWishlist(product);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content:
-                                  Text('${product.name} removed from wishlist'),
-                              backgroundColor: const Color(0xFF8B4513),
-                              duration: const Duration(seconds: 2),
+                            const SnackBar(
+                              content: Text('Removed from wishlist'),
+                              backgroundColor: Color(0xFF8B4513),
+                              duration: Duration(seconds: 2),
                             ),
                           );
                         } else {
                           wishlistProvider.addToWishlist(product);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content:
-                                  Text('${product.name} added to wishlist'),
-                              backgroundColor: const Color(0xFF8B4513),
-                              duration: const Duration(seconds: 2),
+                            const SnackBar(
+                              content: Text('Added to wishlist'),
+                              backgroundColor: Color(0xFF8B4513),
+                              duration: Duration(seconds: 2),
                             ),
                           );
                         }
@@ -125,40 +126,66 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 36,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${product.name} added to cart'),
-                              backgroundColor: const Color(0xFF8B4513),
-                              duration: const Duration(seconds: 2),
+                    // ✅ Toggle Add/Remove from Cart button (live)
+                    Consumer<CartProvider>(
+                      builder: (context, cartProvider, _) {
+                        final bool inCart = cartProvider.cartItems.any(
+                          (item) =>
+                              (item['product'] as Product).id == product.id,
+                        );
+
+                        return SizedBox(
+                          width: double.infinity,
+                          height: 36,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              if (inCart) {
+                                cartProvider.removeFromCart(product);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        '${product.name} removed from cart'),
+                                    backgroundColor: const Color(0xFF8B4513),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              } else {
+                                cartProvider.addToCart(product);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content:
+                                        Text('${product.name} added to cart'),
+                                    backgroundColor: const Color(0xFF8B4513),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            },
+                            icon: Icon(
+                              inCart
+                                  ? Icons.remove_shopping_cart_outlined
+                                  : Icons.shopping_cart_outlined,
+                              size: 16,
+                              color: Colors.white,
                             ),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.shopping_cart_outlined,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                        label: const Text(
-                          'Add to Cart',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            label: Text(
+                              inCart ? 'Remove from Cart' : 'Add to Cart',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF8B4513),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
                           ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF8B4513),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ],
                 ),

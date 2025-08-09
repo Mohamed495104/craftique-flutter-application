@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/product.dart';
+import '../providers/cart_provider.dart';
 import '../providers/wishlist.dart';
 import '../services/firebase_options.dart';
 import '../widgets/product_card.dart';
@@ -22,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String selectedCategory = 'All';
   String searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  DatabaseReference? _database;
 
   // Categories for filtering
   final List<String> categories = [
@@ -60,17 +62,14 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final snapshot = await _database!.child('products').once();
       final rawData = snapshot.snapshot.value;
-    _loadProducts();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+      loadProducts();
+    } catch (e) {
+      print('Error fetching products: $e');
+    }
   }
 
   // Load products from Firebase
-  Future<void> _loadProducts() async {
+  Future<void> loadProducts() async {
     try {
       final database = FirebaseDatabase.instanceFor(
         app: Firebase.app(),
@@ -86,22 +85,28 @@ class _HomeScreenState extends State<HomeScreen> {
         print('No products found');
         return;
       }
+
       if (rawData is List) {
         final products = rawData.where((item) => item != null).map((item) {
           final map = Map<String, dynamic>.from(item as Map);
           return Product.fromMap(map, map['id'] ?? '');
         }).toList();
+
         setState(() {
           _allProducts = products;
         });
-      }
-    } catch (e) {
-      print('Error fetching products: $e');
+
         print('Loaded ${products.length} products');
       }
     } catch (error) {
       print('Error loading products: $error');
     }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   // Filter products based on category and search
@@ -136,7 +141,26 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void logout() async {
+  // Clear all filters
+  void clearAllFilters() {
+    setState(() {
+      searchQuery = '';
+      selectedCategory = 'All';
+      _searchController.clear();
+    });
+  }
+
+  // Navigate to product details
+  void navigateToProductDetails(Product product) {
+    Navigator.pushNamed(
+      context,
+      '/product-details',
+      arguments: product,
+    );
+  }
+
+  // Handle logout
+  void handleLogout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -167,108 +191,25 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildWishlistIcon() {
-    return Consumer<WishlistProvider>(
-      builder: (context, wishlistProvider, child) {
-        final wishlistCount = wishlistProvider.wishlist.length;
-
-        return GestureDetector(
-          onTap: () {
-            Navigator.pushNamed(context, '/wishlist');
-          },
-          child: Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: wishlistCount > 0
-                  ? const Color(0xFF8B4513).withOpacity(0.1)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-              border: wishlistCount > 0
-                  ? Border.all(color: const Color(0xFF8B4513).withOpacity(0.3))
-                  : null,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  wishlistCount > 0 ? Icons.favorite : Icons.favorite_border,
-                  color: const Color(0xFF8B4513),
-                  size: 22,
-                ),
-                if (wishlistCount > 0) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8B4513),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '$wishlistCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  // Clear all filters
-  void _clearAllFilters() {
-    setState(() {
-      searchQuery = '';
-      selectedCategory = 'All';
-      _searchController.clear();
-    });
-  }
-
-  // Navigate to product details
-  void _navigateToProductDetails(Product product) {
-    Navigator.pushNamed(
-      context,
-      '/product-details',
-      arguments: product,
-    );
-  }
-
-  // Handle logout
-  void _handleLogout() {
-    // FirebaseAuth.instance.signOut(); // Uncomment when needed
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F0),
-      appBar: _buildAppBar(),
+      appBar: buildAppBar(),
       body: Column(
         children: [
-          _buildSearchBar(),
-          _buildCategoryChips(),
-          _buildResultsInfo(),
-          _buildProductsGrid(),
+          buildSearchBar(),
+          buildCategoryChips(),
+          buildResultsInfo(),
+          buildProductsGrid(),
         ],
       ),
-      floatingActionButton: _buildLogoutButton(),
+      floatingActionButton: buildLogoutButton(),
     );
   }
 
   // Build app bar with title and actions
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget buildAppBar() {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -279,23 +220,16 @@ class _HomeScreenState extends State<HomeScreen> {
           fontWeight: FontWeight.bold,
           fontSize: 24,
         ),
-        actions: [
-          _buildWishlistIcon(),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.shopping_cart_outlined,
-              color: Color(0xFF8B4513),
       ),
       actions: [
-        _buildWishlistIcon(),
-        _buildShoppingCartIcon(),
+        buildWishlistIcon(),
+        buildShoppingCartIcon(), // ✅ now shows live count and opens cart
       ],
     );
   }
 
   // Build wishlist icon with count
-  Widget _buildWishlistIcon() {
+  Widget buildWishlistIcon() {
     return Consumer<WishlistProvider>(
       builder: (context, wishlistProvider, child) {
         final wishlistCount = wishlistProvider.wishlist.length;
@@ -317,9 +251,9 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  wishlistCount > 0 ? Icons.favorite : Icons.favorite_border,
-                  color: const Color(0xFF8B4513),
+                const Icon(
+                  Icons.favorite_border,
+                  color: Color(0xFF8B4513),
                   size: 22,
                 ),
                 if (wishlistCount > 0) ...[
@@ -349,19 +283,67 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build shopping cart icon
-  Widget _buildShoppingCartIcon() {
-    return IconButton(
-      onPressed: () {}, // Add cart functionality when needed
-      icon: const Icon(
-        Icons.shopping_cart_outlined,
-        color: Color(0xFF8B4513),
-      ),
+  // ✅ Build shopping cart icon with live badge + navigation
+  Widget buildShoppingCartIcon() {
+    return Consumer<CartProvider>(
+      builder: (context, cartProvider, child) {
+        // Sum quantities for live count
+        final int cartCount = cartProvider.cartItems.fold<int>(
+          0,
+          (sum, item) => sum + ((item['quantity'] as int?) ?? 1),
+        );
+
+        return GestureDetector(
+          onTap: () => Navigator.pushNamed(context, '/cart'),
+          child: Container(
+            margin: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: cartCount > 0
+                  ? const Color(0xFF8B4513).withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              border: cartCount > 0
+                  ? Border.all(color: const Color(0xFF8B4513).withOpacity(0.3))
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.shopping_cart_outlined,
+                  color: Color(0xFF8B4513),
+                  size: 22,
+                ),
+                if (cartCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B4513),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$cartCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   // Build search bar
-  Widget _buildSearchBar() {
+  Widget buildSearchBar() {
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -415,7 +397,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Build category selection chips
-  Widget _buildCategoryChips() {
+  Widget buildCategoryChips() {
     return Container(
       height: 60,
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -436,25 +418,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: isSelected ? Colors.white : const Color(0xFF8B4513),
                   fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) => setState(() => searchQuery = value),
-              decoration: InputDecoration(
-                hintText: 'Search for crafts...',
-                hintStyle:
-                    TextStyle(color: const Color(0xFF8B4513).withOpacity(0.6)),
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF8B4513)),
-                suffixIcon: searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Color(0xFF8B4513)),
-                        onPressed: _clearSearch,
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               ),
               selected: isSelected,
               selectedColor: const Color(0xFF8B4513),
@@ -475,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Build results info and clear filters option
-  Widget _buildResultsInfo() {
+  Widget buildResultsInfo() {
     final hasFilters = searchQuery.isNotEmpty || selectedCategory != 'All';
 
     if (!hasFilters) return const SizedBox.shrink();
@@ -491,63 +454,31 @@ class _HomeScreenState extends State<HomeScreen> {
               fontSize: 14,
             ),
           ),
+          const Spacer(),
           TextButton(
-            onPressed: _clearAllFilters,
+            onPressed: clearAllFilters,
             child: const Text(
               'Clear filters',
               style: TextStyle(
                 color: Color(0xFF8B4513),
                 fontSize: 14,
               ),
-              style: const TextStyle(color: Color(0xFF8B4513), fontSize: 16),
             ),
           ),
-          Container(
-            height: 60,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final category = categories[index];
-                final selected = selectedCategory == category;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: ChoiceChip(
-                    label: Text(
-                      category,
-                      style: TextStyle(
-                        color:
-                            selected ? Colors.white : const Color(0xFF8B4513),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    selected: selected,
-                    selectedColor: const Color(0xFF8B4513),
-                    backgroundColor: Colors.white.withOpacity(0.8),
-                    side: BorderSide(
-                        color: const Color(0xFF8B4513).withOpacity(0.3)),
-                    onSelected: (_) =>
-                        setState(() => selectedCategory = category),
-                  ),
-                );
-              },
         ],
       ),
     );
   }
 
   // Build products grid or empty state
-  Widget _buildProductsGrid() {
+  Widget buildProductsGrid() {
     return Expanded(
-      child:
-          filteredProducts.isEmpty ? _buildEmptyState() : _buildProductsList(),
+      child: filteredProducts.isEmpty ? buildEmptyState() : buildProductsList(),
     );
   }
 
   // Build empty state when no products found
-  Widget _buildEmptyState() {
+  Widget buildEmptyState() {
     final hasSearch = searchQuery.isNotEmpty;
     final hasFilters = searchQuery.isNotEmpty || selectedCategory != 'All';
 
@@ -571,92 +502,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             textAlign: TextAlign.center,
           ),
-          if (searchQuery.isNotEmpty || selectedCategory != 'All')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Text(
-                    'Showing ${filteredProducts.length} result${filteredProducts.length != 1 ? 's' : ''}',
-                    style: TextStyle(
-                      color: const Color(0xFF8B4513).withOpacity(0.7),
-                      fontSize: 14,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        searchQuery = '';
-                        selectedCategory = 'All';
-                        _searchController.clear();
-                      });
-                    },
-                    child: const Text(
-                      'Clear filters',
-                      style: TextStyle(color: Color(0xFF8B4513)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: filteredProducts.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          searchQuery.isNotEmpty
-                              ? Icons.search_off
-                              : Icons.inventory_2_outlined,
-                          size: 64,
-                          color: const Color(0xFF8B4513).withOpacity(0.5),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          searchQuery.isNotEmpty
-                              ? 'No products found for "$searchQuery"'
-                              : 'No products available',
-                          style: const TextStyle(
-                            color: Color(0xFF8B4513),
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  )
-                : GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisExtent: 300,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 0.75,
-                    ),
-                    itemCount: filteredProducts.length,
-                    itemBuilder: (context, index) {
-                      final product = filteredProducts[index];
-                      return ProductCard(
-                        product: product,
-                        onTap: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/product-details',
-                            arguments: product.id,
-                          );
-                        },
-                      );
-                    },
-                  ),
-          ),
           if (hasFilters)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: TextButton(
-                onPressed: _clearAllFilters,
+                onPressed: clearAllFilters,
                 child: const Text(
                   'Clear filters',
                   style: TextStyle(
@@ -671,7 +521,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Build products list grid
-  Widget _buildProductsList() {
+  Widget buildProductsList() {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -686,16 +536,16 @@ class _HomeScreenState extends State<HomeScreen> {
         final product = filteredProducts[index];
         return ProductCard(
           product: product,
-          onTap: () => _navigateToProductDetails(product),
+          onTap: () => navigateToProductDetails(product),
         );
       },
     );
   }
 
   // Build logout floating action button
-  Widget _buildLogoutButton() {
+  Widget buildLogoutButton() {
     return FloatingActionButton(
-      onPressed: _handleLogout,
+      onPressed: handleLogout,
       backgroundColor: const Color(0xFF8B4513),
       child: const Icon(Icons.logout, color: Colors.white),
     );
