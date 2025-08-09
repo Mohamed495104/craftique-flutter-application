@@ -5,14 +5,62 @@ import '../providers/wishlist.dart';
 import '../widgets/product_card.dart';
 
 class WishlistScreen extends StatelessWidget {
-  const WishlistScreen({Key? key}) : super(key: key);
+  const WishlistScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Consumer<WishlistProvider>(
       builder: (context, wishlistProvider, child) {
         final wishlist = wishlistProvider.wishlist;
-
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF8B4513),
+        title: const Text(
+          'Your Wishlist',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+        ),
+      ),
+      body: wishlist.isEmpty
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.favorite_border,
+                      size: 80, color: Color(0xFF8B4513)),
+                  SizedBox(height: 16),
+                  Text(
+                    'Your wishlist is empty',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Color(0xFF8B4513),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    'Saved Items: ${wishlist.length}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF8B4513),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GridView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 20,
+                      crossAxisSpacing: 20,
+                      mainAxisExtent: 300,
+=======
         return Scaffold(
           backgroundColor: const Color(0xFFF5F5F0), // Same background as home
           appBar: AppBar(

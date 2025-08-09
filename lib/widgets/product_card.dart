@@ -105,7 +105,6 @@ class ProductCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Product name
                     Text(
                       product.name,
                       maxLines: 2,
@@ -117,7 +116,6 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // Price
                     Text(
                       "\$${product.price.toStringAsFixed(2)}",
                       style: const TextStyle(
@@ -127,13 +125,11 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    // Add to cart button
                     SizedBox(
                       width: double.infinity,
                       height: 36,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          // Add to cart functionality here
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('${product.name} added to cart'),
@@ -175,7 +171,6 @@ class ProductCard extends StatelessWidget {
   }
 
   Widget _buildImage() {
-    // Map all categories to their respective folders
     String categoryFolder;
 
     switch (product.category) {
@@ -198,7 +193,6 @@ class ProductCard extends StatelessWidget {
         categoryFolder = product.category.toLowerCase();
     }
 
-    // Try JPG first
     final jpgPath = 'assets/images/$categoryFolder/${product.id}.jpg';
 
     return Image.asset(
@@ -206,33 +200,24 @@ class ProductCard extends StatelessWidget {
       fit: BoxFit.cover,
       width: double.infinity,
       errorBuilder: (context, error, stackTrace) {
-        // If JPG fails, try PNG
         final pngPath = 'assets/images/$categoryFolder/${product.id}.png';
-
         return Image.asset(
           pngPath,
           fit: BoxFit.cover,
           width: double.infinity,
           errorBuilder: (context, error2, stackTrace2) {
-            // If both JPG and PNG fail, show error widget
             return Container(
               color: const Color(0xFFF5F5F0),
               child: const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.image_not_supported,
-                      size: 40,
-                      color: Color(0xFF8B4513),
-                    ),
+                    Icon(Icons.image_not_supported,
+                        size: 40, color: Color(0xFF8B4513)),
                     SizedBox(height: 8),
                     Text(
                       'Image not available',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF8B4513),
-                      ),
+                      style: TextStyle(fontSize: 12, color: Color(0xFF8B4513)),
                     ),
                   ],
                 ),
