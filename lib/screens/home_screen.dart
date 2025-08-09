@@ -18,6 +18,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Scaffold key to control the Drawer
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   // Data variables
   List<Product> _allProducts = [];
   String selectedCategory = 'All';
@@ -159,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Handle logout
+  // Handle logout (used by Drawer)
   void handleLogout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -194,7 +197,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFFF5F5F0),
+      drawer: buildNavDrawer(), // ✅ Left donut/drawer menu
       appBar: buildAppBar(),
       body: Column(
         children: [
@@ -204,7 +209,8 @@ class _HomeScreenState extends State<HomeScreen> {
           buildProductsGrid(),
         ],
       ),
-      floatingActionButton: buildLogoutButton(),
+      // ❌ removed the logout FAB as requested
+      // floatingActionButton: buildLogoutButton(),
     );
   }
 
@@ -213,6 +219,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
+      leading: IconButton(
+        tooltip: 'Menu',
+        icon: const Icon(Icons.donut_small, color: Color(0xFF8B4513)),
+        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+      ),
       title: const Text(
         "Craftique",
         style: TextStyle(
@@ -223,8 +234,82 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       actions: [
         buildWishlistIcon(),
-        buildShoppingCartIcon(), // ✅ now shows live count and opens cart
+        buildShoppingCartIcon(), // live count + opens cart
       ],
+    );
+  }
+
+  // ✅ Left side Drawer (donut menu)
+  Widget buildNavDrawer() {
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName = (user?.displayName?.trim().isNotEmpty ?? false)
+        ? user!.displayName!
+        : (user?.email ?? 'Guest');
+
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Header with user info
+            UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(color: Color(0xFF8B4513)),
+              accountName: Text(
+                displayName,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              accountEmail: Text(
+                user?.email ?? '',
+                overflow: TextOverflow.ellipsis,
+              ),
+              currentAccountPicture: const CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, color: Color(0xFF8B4513)),
+              ),
+            ),
+
+            // Nav items
+            ListTile(
+              leading: const Icon(Icons.favorite_outline),
+              title: const Text('Wishlist'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/wishlist');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.shopping_cart_outlined),
+              title: const Text('Cart'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/cart');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.payments_outlined),
+              title: const Text('Checkout'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/checkout');
+              },
+            ),
+
+            const Spacer(),
+            const Divider(height: 0),
+
+            // Logout at the bottom
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text('Logout',
+                  style: TextStyle(color: Colors.redAccent)),
+              onTap: () async {
+                Navigator.pop(context);
+                await Future.delayed(const Duration(milliseconds: 150));
+                handleLogout();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -283,11 +368,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ✅ Build shopping cart icon with live badge + navigation
+  // Build shopping cart icon with live badge + navigation
   Widget buildShoppingCartIcon() {
     return Consumer<CartProvider>(
       builder: (context, cartProvider, child) {
-        // Sum quantities for live count
         final int cartCount = cartProvider.cartItems.fold<int>(
           0,
           (sum, item) => sum + ((item['quantity'] as int?) ?? 1),
@@ -542,12 +626,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build logout floating action button
-  Widget buildLogoutButton() {
-    return FloatingActionButton(
-      onPressed: handleLogout,
-      backgroundColor: const Color(0xFF8B4513),
-      child: const Icon(Icons.logout, color: Colors.white),
-    );
-  }
+// (Removed) old logout button
+// Widget buildLogoutButton() { ... }
 }
