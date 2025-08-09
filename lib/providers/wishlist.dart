@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+
 import '../models/product.dart';
 import '../services/firebase_options.dart';
 
@@ -55,6 +56,14 @@ class WishlistProvider extends ChangeNotifier {
 
   Future<void> removeFromWishlist(Product product) async {
     _wishlist.removeWhere((p) => p.id == product.id);
+    notifyListeners();
+    await _saveWishlistToFirebase();
+  }
+
+  // New method to clear entire wishlist
+  Future<void> clearWishlist() async {
+    print('Clearing entire wishlist');
+    _wishlist.clear();
     notifyListeners();
     await _saveWishlistToFirebase();
   }
