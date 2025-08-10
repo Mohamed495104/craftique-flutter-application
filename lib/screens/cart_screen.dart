@@ -24,7 +24,8 @@ class _CartScreenState extends State<CartScreen> {
     if (isLoading) {
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
       _filteredCartItems = cartProvider.cartItems;
-      debugPrint('Cart initialized with ${cartProvider.cartItems.length} items');
+      debugPrint(
+          'Cart initialized with ${cartProvider.cartItems.length} items');
       setState(() {
         isLoading = false;
       });
@@ -32,7 +33,8 @@ class _CartScreenState extends State<CartScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         FocusScope.of(context).requestFocus(_searchFocusNode);
         // Ensure the TextField is visible when the keyboard opens
-        Scrollable.ensureVisible(context, alignment: 0.0, duration: const Duration(milliseconds: 300));
+        Scrollable.ensureVisible(context,
+            alignment: 0.0, duration: const Duration(milliseconds: 300));
       });
     }
   }
@@ -174,17 +176,22 @@ class _CartScreenState extends State<CartScreen> {
                     hintStyle: TextStyle(color: Colors.grey),
                     prefixIcon: Icon(Icons.search, color: Colors.grey),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
                   onTap: () {
                     // Ensure the TextField is visible when tapped
-                    Scrollable.ensureVisible(context, alignment: 0.0, duration: const Duration(milliseconds: 300));
+                    Scrollable.ensureVisible(context,
+                        alignment: 0.0,
+                        duration: const Duration(milliseconds: 300));
                   },
                 ),
               ),
             ),
             // Cart Items List or Empty/Search Not Found States
-            _filteredCartItems.isEmpty && cartItems.isNotEmpty && _searchController.text.isNotEmpty
+            _filteredCartItems.isEmpty &&
+                    cartItems.isNotEmpty &&
+                    _searchController.text.isNotEmpty
                 ? SizedBox(
                     height: MediaQuery.of(context).size.height * 0.5,
                     child: const Center(
@@ -267,11 +274,13 @@ class _CartScreenState extends State<CartScreen> {
                                       child: Image.asset(
                                         'assets/images/${product.category.toLowerCase()}/${product.id}.jpg',
                                         fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
                                           return Image.asset(
                                             'assets/images/${product.category.toLowerCase()}/${product.id}.png',
                                             fit: BoxFit.cover,
-                                            errorBuilder: (context, error2, stackTrace2) {
+                                            errorBuilder:
+                                                (context, error2, stackTrace2) {
                                               return Container(
                                                 color: Colors.grey[200],
                                                 child: const Icon(
@@ -290,7 +299,8 @@ class _CartScreenState extends State<CartScreen> {
                                   // Product Details
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           product.name,
@@ -314,33 +324,46 @@ class _CartScreenState extends State<CartScreen> {
                                           children: [
                                             Container(
                                               decoration: BoxDecoration(
-                                                border: Border.all(color: Colors.grey[300]!),
-                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                    color: Colors.grey[300]!),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
                                               ),
                                               child: Row(
                                                 children: [
                                                   InkWell(
-                                                    onTap: () => _updateQuantity(product, quantity - 1),
+                                                    onTap: () =>
+                                                        _updateQuantity(product,
+                                                            quantity - 1),
                                                     child: const Padding(
-                                                      padding: EdgeInsets.all(6),
-                                                      child: Icon(Icons.remove, size: 16),
+                                                      padding:
+                                                          EdgeInsets.all(6),
+                                                      child: Icon(Icons.remove,
+                                                          size: 16),
                                                     ),
                                                   ),
                                                   Padding(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 12),
                                                     child: Text(
                                                       quantity.toString(),
                                                       style: const TextStyle(
                                                         fontSize: 14,
-                                                        fontWeight: FontWeight.w500,
+                                                        fontWeight:
+                                                            FontWeight.w500,
                                                       ),
                                                     ),
                                                   ),
                                                   InkWell(
-                                                    onTap: () => _updateQuantity(product, quantity + 1),
+                                                    onTap: () =>
+                                                        _updateQuantity(product,
+                                                            quantity + 1),
                                                     child: const Padding(
-                                                      padding: EdgeInsets.all(6),
-                                                      child: Icon(Icons.add, size: 16),
+                                                      padding:
+                                                          EdgeInsets.all(6),
+                                                      child: Icon(Icons.add,
+                                                          size: 16),
                                                     ),
                                                   ),
                                                 ],
@@ -355,7 +378,8 @@ class _CartScreenState extends State<CartScreen> {
                                   Column(
                                     children: [
                                       IconButton(
-                                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                        icon: const Icon(Icons.delete_outline,
+                                            color: Colors.red, size: 20),
                                         onPressed: () {
                                           cartProvider.removeFromCart(product);
                                         },
@@ -480,7 +504,14 @@ class _CartScreenState extends State<CartScreen> {
                         onPressed: () {
                           debugPrint('Checkout initiated');
                           // checkout screen navigation
-                          Navigator.pushNamed(context, '/checkout');
+                          Navigator.pushNamed(
+                            context,
+                            '/checkout',
+                            arguments: {
+                              'total':
+                                  total, // pass the computed total from your cart screen
+                            },
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
