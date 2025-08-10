@@ -190,6 +190,71 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
+  // Updated cart icon to match HomeScreen style
+  Widget buildShoppingCartIcon() {
+    return Consumer<CartProvider>(
+      builder: (context, cartProvider, child) {
+        final int cartCount = cartProvider.cartItems.fold<int>(
+          0,
+          (sum, item) => sum + ((item['quantity'] as int?) ?? 1),
+        );
+
+        return GestureDetector(
+          onTap: () => Navigator.pushNamed(context, '/cart'),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: cartCount > 0
+                  ? const Color(0xFF8B4513).withOpacity(0.1)
+                  : Colors.white.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(20),
+              border: cartCount > 0
+                  ? Border.all(color: const Color(0xFF8B4513).withOpacity(0.3))
+                  : null,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.shopping_cart_outlined,
+                  color: Color(0xFF8B4513),
+                  size: 22,
+                ),
+                if (cartCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B4513),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$cartCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (product == null) {
@@ -226,62 +291,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             ),
           ),
           actions: [
-            Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Consumer<CartProvider>(
-                builder: (context, cartProvider, child) {
-                  final cartItemCount = cartProvider.cartItems.length;
-                  return Stack(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.shopping_cart,
-                            color: Color(0xFF8B4513)),
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/cart');
-                        },
-                      ),
-                      if (cartItemCount > 0)
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Colors.orange,
-                              borderRadius:
-                                  BorderRadius.all(Radius.circular(10)),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 16,
-                              minHeight: 16,
-                            ),
-                            child: Text(
-                              '$cartItemCount',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ),
+            buildShoppingCartIcon(),
           ],
         ),
         body: const Center(
@@ -352,62 +362,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ),
             ),
             actions: [
-              Container(
-                margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Consumer<CartProvider>(
-                  builder: (context, cartProvider, child) {
-                    final cartItemCount = cartProvider.cartItems.length;
-                    return Stack(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.shopping_cart,
-                              color: Color(0xFF8B4513)),
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/cart');
-                          },
-                        ),
-                        if (cartItemCount > 0)
-                          Positioned(
-                            right: 8,
-                            top: 8,
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(
-                                color: Colors.orange,
-                                borderRadius:
-                                    BorderRadius.all(Radius.circular(10)),
-                              ),
-                              constraints: const BoxConstraints(
-                                minWidth: 16,
-                                minHeight: 16,
-                              ),
-                              child: Text(
-                                '$cartItemCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ),
+              buildShoppingCartIcon(),
             ],
             expandedHeight: 360,
             flexibleSpace: FlexibleSpaceBar(
