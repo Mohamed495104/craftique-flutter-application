@@ -93,7 +93,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     setState(() => _isPlacing = true);
     try {
-      // TODO: write your order to Firestore/Realtime DB if needed
       // await ordersRef.add(orderData);
 
       // Clear the cart locally (and in Firebase via provider)
