@@ -284,14 +284,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pushNamed(context, '/cart');
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.payments_outlined),
-              title: const Text('Checkout'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/checkout');
-              },
-            ),
 
             const Spacer(),
             const Divider(height: 0),

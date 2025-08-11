@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
-import 'dart:async';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -32,7 +34,8 @@ class _CartScreenState extends State<CartScreen> {
     if (isLoading) {
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
       _filteredCartItems = List.from(cartProvider.cartItems);
-      debugPrint('Cart initialized with ${cartProvider.cartItems.length} items');
+      debugPrint(
+          'Cart initialized with ${cartProvider.cartItems.length} items');
       setState(() {
         isLoading = false;
       });
@@ -63,7 +66,8 @@ class _CartScreenState extends State<CartScreen> {
           return product.name.toLowerCase().contains(query);
         }).toList();
       }
-      debugPrint('Filtered items: ${_filteredCartItems.length}, cart items: ${cartProvider.cartItems.length}');
+      debugPrint(
+          'Filtered items: ${_filteredCartItems.length}, cart items: ${cartProvider.cartItems.length}');
     });
   }
 
@@ -144,7 +148,8 @@ class _CartScreenState extends State<CartScreen> {
         // Calculate totals
         double subtotal = _filteredCartItems.fold(
           0.0,
-          (sum, item) => sum + (item['product'].price * (item['quantity'] ?? 1)),
+          (sum, item) =>
+              sum + (item['product'].price * (item['quantity'] ?? 1)),
         );
         double tax = subtotal * taxRate;
         double total = cartItems.isEmpty ? 0.0 : subtotal + shippingCost + tax;
@@ -173,7 +178,8 @@ class _CartScreenState extends State<CartScreen> {
               FocusScope.of(context).unfocus();
             },
             child: SingleChildScrollView(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Column(
                 children: [
@@ -193,13 +199,16 @@ class _CartScreenState extends State<CartScreen> {
                           hintStyle: TextStyle(color: Colors.grey),
                           prefixIcon: Icon(Icons.search, color: Colors.grey),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
                         ),
                       ),
                     ),
                   ),
                   // Cart Items List or Empty/Search Not Found States
-                  _filteredCartItems.isEmpty && cartItems.isNotEmpty && _searchController.text.isNotEmpty
+                  _filteredCartItems.isEmpty &&
+                          cartItems.isNotEmpty &&
+                          _searchController.text.isNotEmpty
                       ? SizedBox(
                           height: MediaQuery.of(context).size.height * 0.5,
                           child: const Center(
@@ -252,7 +261,8 @@ class _CartScreenState extends State<CartScreen> {
                           : SizedBox(
                               height: MediaQuery.of(context).size.height * 0.5,
                               child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
                                 itemCount: _filteredCartItems.length,
                                 itemBuilder: (context, index) {
                                   final item = _filteredCartItems[index];
@@ -265,7 +275,8 @@ class _CartScreenState extends State<CartScreen> {
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey[200]!),
+                                      border:
+                                          Border.all(color: Colors.grey[200]!),
                                     ),
                                     child: Row(
                                       children: [
@@ -274,19 +285,23 @@ class _CartScreenState extends State<CartScreen> {
                                           width: 80,
                                           height: 80,
                                           decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                             color: Colors.grey[100],
                                           ),
                                           child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                             child: Image.asset(
                                               'assets/images/${product.category.toLowerCase()}/${product.id}.jpg',
                                               fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) {
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
                                                 return Image.asset(
                                                   'assets/images/${product.category.toLowerCase()}/${product.id}.png',
                                                   fit: BoxFit.cover,
-                                                  errorBuilder: (context, error2, stackTrace2) {
+                                                  errorBuilder: (context,
+                                                      error2, stackTrace2) {
                                                     return Container(
                                                       color: Colors.grey[200],
                                                       child: const Icon(
@@ -305,7 +320,8 @@ class _CartScreenState extends State<CartScreen> {
                                         // Product Details
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 product.name,
@@ -329,41 +345,68 @@ class _CartScreenState extends State<CartScreen> {
                                                 children: [
                                                   Container(
                                                     decoration: BoxDecoration(
-                                                      border: Border.all(color: Colors.grey[300]!),
-                                                      borderRadius: BorderRadius.circular(6),
+                                                      border: Border.all(
+                                                          color: Colors
+                                                              .grey[300]!),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              6),
                                                     ),
                                                     child: Row(
                                                       children: [
                                                         InkWell(
                                                           onTap: () {
-                                                            debugPrint('Minus tapped for ${product.name}, current: $quantity, new: ${quantity - 1}');
-                                                            _updateQuantity(product, quantity - 1);
+                                                            debugPrint(
+                                                                'Minus tapped for ${product.name}, current: $quantity, new: ${quantity - 1}');
+                                                            _updateQuantity(
+                                                                product,
+                                                                quantity - 1);
                                                           },
-                                                          splashColor: Colors.grey[300],
+                                                          splashColor:
+                                                              Colors.grey[300],
                                                           child: const Padding(
-                                                            padding: EdgeInsets.all(8),
-                                                            child: Icon(Icons.remove, size: 16),
+                                                            padding:
+                                                                EdgeInsets.all(
+                                                                    8),
+                                                            child: Icon(
+                                                                Icons.remove,
+                                                                size: 16),
                                                           ),
                                                         ),
                                                         Padding(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      12),
                                                           child: Text(
                                                             quantity.toString(),
-                                                            style: const TextStyle(
+                                                            style:
+                                                                const TextStyle(
                                                               fontSize: 14,
-                                                              fontWeight: FontWeight.w500,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
                                                             ),
                                                           ),
                                                         ),
                                                         InkWell(
                                                           onTap: () {
-                                                            debugPrint('Plus tapped for ${product.name}, current: $quantity, new: ${quantity + 1}');
-                                                            _updateQuantity(product, quantity + 1);
+                                                            debugPrint(
+                                                                'Plus tapped for ${product.name}, current: $quantity, new: ${quantity + 1}');
+                                                            _updateQuantity(
+                                                                product,
+                                                                quantity + 1);
                                                           },
-                                                          splashColor: Colors.grey[300],
+                                                          splashColor:
+                                                              Colors.grey[300],
                                                           child: const Padding(
-                                                            padding: EdgeInsets.all(8),
-                                                            child: Icon(Icons.add, size: 16),
+                                                            padding:
+                                                                EdgeInsets.all(
+                                                                    8),
+                                                            child: Icon(
+                                                                Icons.add,
+                                                                size: 16),
                                                           ),
                                                         ),
                                                       ],
@@ -378,10 +421,16 @@ class _CartScreenState extends State<CartScreen> {
                                         Column(
                                           children: [
                                             IconButton(
-                                              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                              icon: const Icon(
+                                                  Icons.delete_outline,
+                                                  color: Colors.red,
+                                                  size: 20),
                                               onPressed: () {
-                                                debugPrint('Delete tapped for ${product.name}');
-                                                cartProvider.removeFromCart(product).then((_) {
+                                                debugPrint(
+                                                    'Delete tapped for ${product.name}');
+                                                cartProvider
+                                                    .removeFromCart(product)
+                                                    .then((_) {
                                                   _filterCartItems();
                                                 });
                                               },
@@ -396,143 +445,152 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                             ),
                   // Bottom Section with Price Breakdown and Buy Now Button
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF8B4513),
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(24),
-                        topRight: Radius.circular(24),
+                  if (cartItems.isNotEmpty)
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF8B4513),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(24),
+                          topRight: Radius.circular(24),
+                        ),
                       ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Price Breakdown
-                          Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Sub-Total',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Price Breakdown
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Sub-Total',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    '\$${subtotal.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
+                                    Text(
+                                      '\$${subtotal.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Shipping',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  Text(
-                                    cartItems.isEmpty ? '\$0' : '\$${shippingCost.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Tax (8%)',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  Text(
-                                    '\$${tax.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              const Divider(color: Colors.white24),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Total',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '\$${total.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                          // Buy Now Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                debugPrint('Buy Now clicked, cart items: ${cartItems.length}');
-                                if (cartItems.isEmpty) {
-                                  _showSnackBar(context, 'Your cart is empty');
-                                } else {
-                                  Navigator.pushNamed(context, '/checkout');
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: const Color(0xFF8B4513),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  ],
                                 ),
-                                elevation: 0,
-                              ),
-                              child: const Text(
-                                'Buy Now',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.5,
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Shipping',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Text(
+                                      cartItems.isEmpty
+                                          ? '\$0'
+                                          : '\$${shippingCost.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Tax (8%)',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Text(
+                                      '\$${tax.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                const Divider(color: Colors.white24),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Total',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      '\$${total.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            // Buy Now Button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  debugPrint(
+                                      'Buy Now clicked, cart items: ${cartItems.length}');
+                                  if (cartItems.isEmpty) {
+                                    _showSnackBar(
+                                        context, 'Your cart is empty');
+                                  } else {
+                                    Navigator.pushNamed(context, '/checkout');
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: const Color(0xFF8B4513),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: const Text(
+                                  'Buy Now',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

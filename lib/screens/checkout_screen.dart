@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'order_confirmation_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final double totalAmount;
