@@ -1,16 +1,24 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
+
 import '../models/product.dart';
 
 class CartProvider with ChangeNotifier {
   final List<Map<String, dynamic>> _cartItems = [];
-  DatabaseReference? _database;
+  DatabaseReference? _rootRef;
+  StreamSubscription<DatabaseEvent>? _cartSub;
+
   String? _userId;
-  bool _isUpdating = false;
+  bool _squelchRemote = false; // prevents remote re-hydration during local ops
 
   CartProvider() {
-    _initializeFirebase();
+    _initialize();
   }
+
+  // ---------------- Public API ----------------
 
   List<Map<String, dynamic>> get cartItems => List.unmodifiable(_cartItems);
 
@@ -19,69 +27,32 @@ class CartProvider with ChangeNotifier {
         (sum, item) => sum + (item['product'].price * (item['quantity'] ?? 1)),
       );
 
-  Future<void> _initializeFirebase() async {
+  /// Adds product or increments quantity if it already exists
+  Future<void> addToCart(Product product,
+      {int quantity = 1, String? imageUrl}) async {
+    if (_rootRef == null || _userId == null) return;
+
+    _squelchRemote = true;
     try {
-      _database = FirebaseDatabase.instanceFor(
-        app: FirebaseDatabase.instance.app,
-        databaseURL: 'https://flutter-group-project-3541f-default-rtdb.firebaseio.com',
-      ).ref();
-      _userId = 'arm3PES7djfDl8GdO311631x3553'; // Replace with FirebaseAuth.instance.currentUser?.uid
-      await _fetchCartFromFirebase();
-    } catch (e) {
-      debugPrint('Firebase init error in CartProvider: $e');
-    }
-  }
+      final userCartRef = _rootRef!.child('cart/$_userId');
 
-  Future<void> _fetchCartFromFirebase() async {
-    if (_database == null || _userId == null) return;
-
-    _database!.child('cart/$_userId').onValue.listen((event) {
-      if (_isUpdating) {
-        debugPrint('Skipping onValue update due to ongoing operation');
-        return;
-      }
-
-      final cartData = event.snapshot.value as Map<dynamic, dynamic>?;
-      _cartItems.clear();
-      if (cartData != null) {
-        cartData.forEach((key, value) {
-          final item = Map<String, dynamic>.from(value);
-          final product = Product(
-            id: item['productId'].toString(),
-            name: item['productName'] ?? '',
-            description: '',
-            price: (item['price'] ?? 0).toDouble(),
-            category: item['categoryName'] ?? '',
-            rating: 0.0,
-          );
-          _cartItems.add({
-            'product': product,
-            'quantity': item['quantity'] ?? 1,
-            'firebaseKey': key,
-          });
-        });
-      }
-      debugPrint('Fetched ${_cartItems.length} items from Firebase');
-      notifyListeners();
-    });
-  }
-
-  Future<void> addToCart(Product product, {int quantity = 1, String? imageUrl}) async {
-    if (_database == null || _userId == null) return;
-
-    _isUpdating = true;
-    try {
-      final snapshot = await _database!.child('cart/$_userId').orderByChild('productId').equalTo(product.id).once();
+      final snapshot = await userCartRef
+          .orderByChild('productId')
+          .equalTo(product.id)
+          .once();
       final cartData = snapshot.snapshot.value as Map<dynamic, dynamic>?;
 
       if (cartData != null && cartData.isNotEmpty) {
-        final existingKey = cartData.keys.first;
-        final existingItem = cartData[existingKey] as Map<dynamic, dynamic>;
+        final String existingKey = cartData.keys.first.toString();
+        final existingItem = Map<String, dynamic>.from(cartData[existingKey]);
+
         final newQuantity = (existingItem['quantity'] ?? 0) + quantity;
 
-        final localItemIndex = _cartItems.indexWhere((item) => item['product'].id == product.id);
-        if (localItemIndex != -1) {
-          _cartItems[localItemIndex]['quantity'] = newQuantity;
+        // update local
+        final localIdx = _cartItems
+            .indexWhere((it) => (it['product'] as Product).id == product.id);
+        if (localIdx != -1) {
+          _cartItems[localIdx]['quantity'] = newQuantity;
         } else {
           _cartItems.add({
             'product': product,
@@ -90,22 +61,27 @@ class CartProvider with ChangeNotifier {
           });
         }
 
-        await _database!.child('cart/$_userId/$existingKey').update({
+        // update remote
+        await userCartRef.child(existingKey).update({
           'quantity': newQuantity,
           'totalPrice': product.price * newQuantity,
           'timestamp': ServerValue.timestamp,
         });
-        debugPrint('Updated ${product.name} in cart, new quantity: $newQuantity');
+        if (kDebugMode) {
+          print('Updated ${product.name} in cart, new quantity: $newQuantity');
+        }
       } else {
-        final newCartItemRef = _database!.child('cart/$_userId').push();
-        final newItem = {
+        final newRef = userCartRef.push();
+
+        // update local immediately
+        _cartItems.add({
           'product': product,
           'quantity': quantity,
-          'firebaseKey': newCartItemRef.key,
-        };
-        _cartItems.add(newItem);
+          'firebaseKey': newRef.key,
+        });
 
-        await newCartItemRef.set({
+        // write remote
+        await newRef.set({
           'categoryName': product.category,
           'imageUrl': imageUrl ?? '',
           'price': product.price,
@@ -115,85 +91,191 @@ class CartProvider with ChangeNotifier {
           'timestamp': ServerValue.timestamp,
           'totalPrice': product.price * quantity,
         });
-        debugPrint('Added ${product.name} to cart, quantity: $quantity');
+        if (kDebugMode) {
+          print('Added ${product.name} to cart, quantity: $quantity');
+        }
       }
+
       notifyListeners();
     } catch (e) {
       debugPrint('Error adding to cart: $e');
     } finally {
-      _isUpdating = false;
+      _squelchRemote = false;
     }
   }
 
-  Future<void> _updateCartItemInFirebase(String firebaseKey, Product product, int quantity) async {
-    if (_database == null || _userId == null) return;
-
-    await _database!.child('cart/$_userId/$firebaseKey').update({
-      'quantity': quantity,
-      'totalPrice': product.price * quantity,
-      'timestamp': ServerValue.timestamp,
-    });
-    debugPrint('Updated Firebase: ${product.name}, quantity: $quantity');
-  }
-
+  /// Decrements to 0 = remove. Here we always remove the line item.
   Future<void> removeFromCart(Product product) async {
-    if (_database == null || _userId == null) return;
+    if (_rootRef == null || _userId == null) return;
 
-    _isUpdating = true;
+    _squelchRemote = true;
     try {
-      final itemIndex = _cartItems.indexWhere((item) => item['product'].id == product.id);
-      if (itemIndex != -1) {
-        final firebaseKey = _cartItems[itemIndex]['firebaseKey'];
-        await _database!.child('cart/$_userId/$firebaseKey').remove();
-        _cartItems.removeAt(itemIndex);
-        debugPrint('Removed ${product.name} from cart, remaining: ${_cartItems.length}');
-        notifyListeners();
-      } else {
-        debugPrint('Error: ${product.name} not found in cart');
+      final idx = _cartItems
+          .indexWhere((it) => (it['product'] as Product).id == product.id);
+      if (idx == -1) {
+        debugPrint('removeFromCart: ${product.name} not found');
+        return;
       }
+
+      final String? firebaseKey = _cartItems[idx]['firebaseKey'] as String?;
+      if (firebaseKey == null) {
+        debugPrint('removeFromCart: missing firebaseKey for ${product.id}');
+        _cartItems.removeAt(idx);
+        notifyListeners();
+        return;
+      }
+
+      await _rootRef!.child('cart/$_userId/$firebaseKey').remove();
+      _cartItems.removeAt(idx);
+
+      if (kDebugMode) {
+        print('Removed ${product.name} from cart, left: ${_cartItems.length}');
+      }
+      notifyListeners();
     } catch (e) {
       debugPrint('Error removing from cart: $e');
     } finally {
-      _isUpdating = false;
+      _squelchRemote = false;
     }
   }
 
   Future<void> updateQuantity(Product product, int quantity) async {
-    if (_database == null || _userId == null) return;
+    if (_rootRef == null || _userId == null) return;
 
-    _isUpdating = true;
+    _squelchRemote = true;
     try {
-      final itemIndex = _cartItems.indexWhere((item) => item['product'].id == product.id);
-      if (itemIndex != -1 && quantity > 0) {
-        _cartItems[itemIndex]['quantity'] = quantity;
-        await _updateCartItemInFirebase(_cartItems[itemIndex]['firebaseKey'], product, quantity);
-        debugPrint('Updated ${product.name} quantity to $quantity');
+      final idx = _cartItems
+          .indexWhere((it) => (it['product'] as Product).id == product.id);
+
+      if (idx != -1 && quantity > 0) {
+        _cartItems[idx]['quantity'] = quantity;
+        final String? key = _cartItems[idx]['firebaseKey'] as String?;
+        if (key != null) {
+          await _updateCartItemInFirebase(key, product, quantity);
+        }
         notifyListeners();
       } else if (quantity <= 0) {
         await removeFromCart(product);
       } else {
-        debugPrint('Error: ${product.name} not found in cart');
+        debugPrint('updateQuantity: ${product.name} not found');
       }
     } catch (e) {
       debugPrint('Error updating quantity: $e');
     } finally {
-      _isUpdating = false;
+      _squelchRemote = false;
     }
   }
 
+  /// Clear cart after successful order
   Future<void> clearCart() async {
-    if (_database == null || _userId == null) return;
+    if (_rootRef == null || _userId == null) return;
 
-    _isUpdating = true;
+    _squelchRemote = true;
     try {
-      await _database!.child('cart/$_userId').remove();
+      await _rootRef!.child('cart/$_userId').remove();
       _cartItems.clear();
-      debugPrint('Cart cleared');
+      if (kDebugMode) print('Cart cleared');
       notifyListeners();
     } catch (e) {
       debugPrint('Error clearing cart: $e');
     } finally {
-      _isUpdating = false;
+      _squelchRemote = false;
     }
+  }
+
+  // ---------------- Internal ----------------
+
+  Future<void> _initialize() async {
+    try {
+      // Use the default Firebase app (must be initialized before Provider is created)
+      final app = FirebaseDatabase
+          .instance.app; // requires Firebase.initializeApp done once
+      _rootRef = FirebaseDatabase.instanceFor(
+        app: app,
+        databaseURL:
+            'https://flutter-group-project-3541f-default-rtdb.firebaseio.com',
+      ).ref();
+
+      // pick current user id; keep it flexible if not logged in yet
+      _setUser(FirebaseAuth.instance.currentUser?.uid);
+
+      // Also listen for auth changes (handles logout/login seamlessly)
+      FirebaseAuth.instance.authStateChanges().listen((user) {
+        _setUser(user?.uid);
+      });
+    } catch (e) {
+      debugPrint('CartProvider init error: $e');
+    }
+  }
+
+  void _setUser(String? uid) {
+    if (_userId == uid && _cartSub != null) return;
+
+    _userId = uid;
+
+    // re-subscribe to this user's cart
+    _cartSub?.cancel();
+    _cartSub = null;
+
+    if (_rootRef == null || _userId == null) {
+      _cartItems.clear();
+      notifyListeners();
+      return;
+    }
+
+    final userCartRef = _rootRef!.child('cart/$_userId');
+
+    _cartSub = userCartRef.onValue.listen((event) {
+      if (_squelchRemote) {
+        if (kDebugMode) print('onValue ignored (local write in progress)');
+        return;
+      }
+
+      _cartItems.clear();
+
+      final raw = event.snapshot.value;
+      if (raw is Map) {
+        raw.forEach((key, value) {
+          final item = Map<String, dynamic>.from(value as Map);
+          final product = Product(
+            id: item['productId']?.toString() ?? '',
+            name: item['productName'] ?? '',
+            description: '', // not stored remotely
+            price: (item['price'] ?? 0).toDouble(),
+            category: item['categoryName'] ?? '',
+            rating: 0.0,
+          );
+          _cartItems.add({
+            'product': product,
+            'quantity': (item['quantity'] ?? 1) as int,
+            'firebaseKey': key.toString(),
+          });
+        });
+      }
+
+      if (kDebugMode) {
+        print('Realtime: fetched ${_cartItems.length} items for user $_userId');
+      }
+      notifyListeners();
+    });
+  }
+
+  Future<void> _updateCartItemInFirebase(
+      String firebaseKey, Product product, int quantity) async {
+    if (_rootRef == null || _userId == null) return;
+    await _rootRef!.child('cart/$_userId/$firebaseKey').update({
+      'quantity': quantity,
+      'totalPrice': product.price * quantity,
+      'timestamp': ServerValue.timestamp,
+    });
+    if (kDebugMode) {
+      print('Firebase updated: ${product.name}, qty: $quantity');
+    }
+  }
+
+  @override
+  void dispose() {
+    _cartSub?.cancel();
+    super.dispose();
   }
 }

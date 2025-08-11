@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/cart_provider.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final double totalAmount;
@@ -25,6 +27,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String cardNumber = '';
   String expiryDate = '';
   String cvv = '';
+
+  bool _isPlacing = false;
 
   bool get isCardPayment =>
       paymentMethod == 'Credit Card' || paymentMethod == 'Debit Card';
@@ -62,9 +66,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: Colors.grey[300]!),
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF8B4513), width: 2),
+          focusedBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            borderSide: BorderSide(color: Color(0xFF8B4513), width: 2),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -72,12 +76,51 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
           filled: true,
           fillColor: Colors.grey[50],
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
         validator: validator,
         onSaved: onSaved,
       ),
     );
+  }
+
+  Future<void> _placeOrder() async {
+    if (_isPlacing) return; // guard against double taps
+    if (!_formKey.currentState!.validate()) return;
+
+    _formKey.currentState!.save();
+
+    setState(() => _isPlacing = true);
+    try {
+      // TODO: write your order to Firestore/Realtime DB if needed
+      // await ordersRef.add(orderData);
+
+      // ✅ Clear the cart locally (and in Firebase via provider)
+      if (!mounted) return;
+      await context.read<CartProvider>().clearCart();
+
+      // ✅ Navigate to your confirmation screen
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(
+        context,
+        '/order-confirmation',
+        arguments: {
+          'totalAmount': widget.totalAmount,
+          'paymentMethod': paymentMethod,
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong placing your order.'),
+          backgroundColor: Color(0xFF8B4513),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isPlacing = false);
+    }
   }
 
   @override
@@ -148,7 +191,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF8B4513).withOpacity(0.1),
+                                  color:
+                                      const Color(0xFF8B4513).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -192,7 +236,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 24),
 
                     // Personal Information Section
@@ -217,7 +261,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF8B4513).withOpacity(0.1),
+                                  color:
+                                      const Color(0xFF8B4513).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -238,14 +283,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ],
                           ),
                           const SizedBox(height: 20),
-                          
                           Row(
                             children: [
                               Expanded(
                                 child: _buildTextField(
                                   label: "First Name",
-                                  validator: (value) => value == null || value.isEmpty 
-                                      ? 'Enter first name' : null,
+                                  validator: (value) =>
+                                      value == null || value.isEmpty
+                                          ? 'Enter first name'
+                                          : null,
                                   onSaved: (value) => firstName = value ?? '',
                                 ),
                               ),
@@ -253,19 +299,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               Expanded(
                                 child: _buildTextField(
                                   label: "Last Name",
-                                  validator: (value) => value == null || value.isEmpty 
-                                      ? 'Enter last name' : null,
+                                  validator: (value) =>
+                                      value == null || value.isEmpty
+                                          ? 'Enter last name'
+                                          : null,
                                   onSaved: (value) => lastName = value ?? '',
                                 ),
                               ),
                             ],
                           ),
-                          
                           _buildTextField(
                             label: "Phone Number",
                             keyboardType: TextInputType.phone,
-                            validator: (value) => value == null || value.length < 10
-                                ? 'Enter valid phone' : null,
+                            validator: (value) =>
+                                value == null || value.length < 10
+                                    ? 'Enter valid phone'
+                                    : null,
                             onSaved: (value) => phoneNumber = value ?? '',
                           ),
                         ],
@@ -296,7 +345,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF8B4513).withOpacity(0.1),
+                                  color:
+                                      const Color(0xFF8B4513).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -317,15 +367,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ],
                           ),
                           const SizedBox(height: 20),
-                          
                           Row(
                             children: [
                               Expanded(
                                 flex: 1,
                                 child: _buildTextField(
                                   label: "House #",
-                                  validator: (value) => value == null || value.isEmpty
-                                      ? 'Required' : null,
+                                  validator: (value) =>
+                                      value == null || value.isEmpty
+                                          ? 'Required'
+                                          : null,
                                   onSaved: (value) => houseNumber = value ?? '',
                                 ),
                               ),
@@ -334,21 +385,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 flex: 2,
                                 child: _buildTextField(
                                   label: "Street",
-                                  validator: (value) => value == null || value.isEmpty 
-                                      ? 'Enter street name' : null,
+                                  validator: (value) =>
+                                      value == null || value.isEmpty
+                                          ? 'Enter street name'
+                                          : null,
                                   onSaved: (value) => street = value ?? '',
                                 ),
                               ),
                             ],
                           ),
-                          
                           Row(
                             children: [
                               Expanded(
                                 child: _buildTextField(
                                   label: "City",
-                                  validator: (value) => value == null || value.isEmpty 
-                                      ? 'Enter city' : null,
+                                  validator: (value) =>
+                                      value == null || value.isEmpty
+                                          ? 'Enter city'
+                                          : null,
                                   onSaved: (value) => city = value ?? '',
                                 ),
                               ),
@@ -356,8 +410,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               Expanded(
                                 child: _buildTextField(
                                   label: "Postal Code",
-                                  validator: (value) => value == null || value.isEmpty 
-                                      ? 'Enter postal code' : null,
+                                  validator: (value) =>
+                                      value == null || value.isEmpty
+                                          ? 'Enter postal code'
+                                          : null,
                                   onSaved: (value) => postalCode = value ?? '',
                                 ),
                               ),
@@ -391,7 +447,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF8B4513).withOpacity(0.1),
+                                  color:
+                                      const Color(0xFF8B4513).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -412,40 +469,52 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ],
                           ),
                           const SizedBox(height: 20),
-                          
                           Container(
                             margin: const EdgeInsets.only(bottom: 16),
                             child: DropdownButtonFormField<String>(
                               value: paymentMethod,
                               decoration: InputDecoration(
                                 labelText: "Select Payment Method",
-                                labelStyle: const TextStyle(color: Color(0xFF8B4513)),
+                                labelStyle:
+                                    const TextStyle(color: Color(0xFF8B4513)),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey[300]!),
                                 ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFF8B4513), width: 2),
+                                focusedBorder: const OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(12)),
+                                  borderSide: BorderSide(
+                                      color: Color(0xFF8B4513), width: 2),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey[300]!),
                                 ),
                                 filled: true,
                                 fillColor: Colors.grey[50],
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 16),
                               ),
-                              items: ["Credit Card", "Debit Card", "PayPal", "Cash on Delivery"]
+                              items: [
+                                "Credit Card",
+                                "Debit Card",
+                                "PayPal",
+                                "Cash on Delivery"
+                              ]
                                   .map((method) => DropdownMenuItem(
                                         value: method,
                                         child: Row(
                                           children: [
                                             Icon(
-                                              method == 'Credit Card' || method == 'Debit Card'
+                                              method == 'Credit Card' ||
+                                                      method == 'Debit Card'
                                                   ? Icons.credit_card
                                                   : method == 'PayPal'
-                                                      ? Icons.account_balance_wallet
+                                                      ? Icons
+                                                          .account_balance_wallet
                                                       : Icons.local_shipping,
                                               color: const Color(0xFF8B4513),
                                               size: 20,
@@ -461,13 +530,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               }),
                             ),
                           ),
-
                           if (isCardPayment) ...[
                             _buildTextField(
                               label: "Card Number",
                               keyboardType: TextInputType.number,
-                              validator: (value) => isCardPayment && (value == null || value.length < 16)
-                                  ? 'Enter valid card number' : null,
+                              validator: (value) => isCardPayment &&
+                                      (value == null || value.length < 16)
+                                  ? 'Enter valid card number'
+                                  : null,
                               onSaved: (value) => cardNumber = value ?? '',
                             ),
                             Row(
@@ -475,9 +545,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 Expanded(
                                   child: _buildTextField(
                                     label: "Expiry (MM/YY)",
-                                    validator: (value) => isCardPayment && (value == null || value.isEmpty)
-                                        ? 'Enter expiry date' : null,
-                                    onSaved: (value) => expiryDate = value ?? '',
+                                    validator: (value) => isCardPayment &&
+                                            (value == null || value.isEmpty)
+                                        ? 'Enter expiry date'
+                                        : null,
+                                    onSaved: (value) =>
+                                        expiryDate = value ?? '',
                                   ),
                                 ),
                                 const SizedBox(width: 16),
@@ -486,8 +559,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     label: "CVV",
                                     keyboardType: TextInputType.number,
                                     obscureText: true,
-                                    validator: (value) => isCardPayment && (value == null || value.length < 3)
-                                        ? 'Enter valid CVV' : null,
+                                    validator: (value) => isCardPayment &&
+                                            (value == null || value.length < 3)
+                                        ? 'Enter valid CVV'
+                                        : null,
                                     onSaved: (value) => cvv = value ?? '',
                                   ),
                                 ),
@@ -504,7 +579,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
           ),
-          
+
           // Bottom Button Section
           Container(
             decoration: const BoxDecoration(
@@ -552,23 +627,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                         elevation: 0,
                       ),
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          _formKey.currentState!.save();
-
-                          Navigator.pushReplacementNamed(
-                            context,
-                            '/order-confirmation',
-                            arguments: {
-                              'totalAmount': widget.totalAmount,
-                              'paymentMethod': paymentMethod,
-                            },
-                          );
-                        }
-                      },
-                      child: const Text(
-                        "Place Order",
-                        style: TextStyle(
+                      onPressed: _isPlacing ? null : _placeOrder,
+                      child: Text(
+                        _isPlacing ? "Placing..." : "Place Order",
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.5,

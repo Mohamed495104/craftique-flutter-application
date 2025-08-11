@@ -239,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ✅ Left side Drawer (donut menu)
+  // Left side Drawer (donut menu)
   Widget buildNavDrawer() {
     final user = FirebaseAuth.instance.currentUser;
     final displayName = (user?.displayName?.trim().isNotEmpty ?? false)

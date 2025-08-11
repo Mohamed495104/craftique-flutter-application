@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
+import 'checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -566,7 +567,13 @@ class _CartScreenState extends State<CartScreen> {
                                     _showSnackBar(
                                         context, 'Your cart is empty');
                                   } else {
-                                    Navigator.pushNamed(context, '/checkout');
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            CheckoutScreen(totalAmount: total),
+                                      ),
+                                    );
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
