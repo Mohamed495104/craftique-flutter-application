@@ -96,11 +96,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // TODO: write your order to Firestore/Realtime DB if needed
       // await ordersRef.add(orderData);
 
-      // ✅ Clear the cart locally (and in Firebase via provider)
+      // Clear the cart locally (and in Firebase via provider)
       if (!mounted) return;
       await context.read<CartProvider>().clearCart();
 
-      // ✅ Navigate to your confirmation screen
+      // Navigate to your confirmation screen
       if (!mounted) return;
       Navigator.pushReplacementNamed(
         context,
