@@ -18,91 +18,94 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Scaffold key to control the Drawer
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Data variables
-  List<Product> _allProducts = [];
-  String selectedCategory = 'All';
-  String searchQuery = '';
-  final TextEditingController _searchController = TextEditingController();
-  DatabaseReference? _database;
-
-  // Categories for filtering
   final List<String> categories = [
     'All',
     'Paintings',
     'Ceramics',
     'Jewelry',
     'Clothing',
-    'Miniature'
+    'Miniature',
   ];
+
+  final TextEditingController _searchController = TextEditingController();
+
+  DatabaseReference? _database;
+  List<Product> _allProducts = [];
+  String selectedCategory = 'All';
+  String searchQuery = '';
+  bool _isLoading = true;
+  String? _error;
+
+  static const String _dbUrl =
+      'https://flutter-group-project-3541f-default-rtdb.firebaseio.com';
 
   @override
   void initState() {
     super.initState();
-    _initializeFirebase();
+    _setupAndLoad();
   }
 
-  Future<void> _initializeFirebase() async {
+  Future<void> _setupAndLoad() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
+
       _database = FirebaseDatabase.instanceFor(
         app: Firebase.app(),
-        databaseURL:
-            'https://flutter-group-project-3541f-default-rtdb.firebaseio.com',
+        databaseURL: _dbUrl,
       ).ref();
-      await fetchProductsFromRealtimeDB();
+
+      await _loadProducts();
     } catch (e) {
-      print('Firebase init error: $e');
+      _error = 'Something went wrong. Please try again.';
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  Future<void> fetchProductsFromRealtimeDB() async {
+  Future<void> _loadProducts() async {
     if (_database == null) return;
-    try {
-      final snapshot = await _database!.child('products').once();
-      final rawData = snapshot.snapshot.value;
-      loadProducts();
-    } catch (e) {
-      print('Error fetching products: $e');
+
+    final snapshot = await _database!.child('products').once();
+    final raw = snapshot.snapshot.value;
+    final List<Product> loaded = [];
+
+    if (raw == null) {
+      _allProducts = [];
+      return;
     }
-  }
 
-  // Load products from Firebase
-  Future<void> loadProducts() async {
-    try {
-      final database = FirebaseDatabase.instanceFor(
-        app: Firebase.app(),
-        databaseURL:
-            'https://flutter-group-project-3541f-default-rtdb.firebaseio.com',
-      );
-
-      final ref = database.ref().child('products');
-      final snapshot = await ref.once();
-      final rawData = snapshot.snapshot.value;
-
-      if (rawData == null) {
-        print('No products found');
-        return;
+    if (raw is List) {
+      for (final item in raw) {
+        if (item == null) continue;
+        final map = Map<String, dynamic>.from(item as Map);
+        loaded.add(Product.fromMap(map, map['id']?.toString() ?? ''));
       }
+    } else if (raw is Map) {
+      raw.forEach((key, value) {
+        if (value == null) return;
+        final map = Map<String, dynamic>.from(value as Map);
+        loaded
+            .add(Product.fromMap(map, map['id']?.toString() ?? key.toString()));
+      });
+    }
 
-      if (rawData is List) {
-        final products = rawData.where((item) => item != null).map((item) {
-          final map = Map<String, dynamic>.from(item as Map);
-          return Product.fromMap(map, map['id'] ?? '');
-        }).toList();
-
-        setState(() {
-          _allProducts = products;
-        });
-
-        print('Loaded ${products.length} products');
-      }
-    } catch (error) {
-      print('Error loading products: $error');
+    if (mounted) {
+      setState(() {
+        _allProducts = loaded;
+      });
     }
   }
 
@@ -112,31 +115,27 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // Filter products based on category and search
   List<Product> get filteredProducts {
     List<Product> filtered = _allProducts;
 
-    // Filter by category
     if (selectedCategory != 'All') {
       filtered = filtered
-          .where((product) => product.category == selectedCategory)
-          .toList();
+          .where((p) => p.category == selectedCategory)
+          .toList(growable: false);
     }
 
-    // Filter by search query
     if (searchQuery.isNotEmpty) {
-      final query = searchQuery.toLowerCase();
+      final q = searchQuery.toLowerCase();
       filtered = filtered
           .where((p) =>
-              p.name.toLowerCase().contains(query) ||
-              p.description.toLowerCase().contains(query))
-          .toList();
+              p.name.toLowerCase().contains(q) ||
+              p.description.toLowerCase().contains(q))
+          .toList(growable: false);
     }
 
     return filtered;
   }
 
-  // Clear search input
   void _clearSearch() {
     setState(() {
       searchQuery = '';
@@ -144,8 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Clear all filters
-  void clearAllFilters() {
+  void _clearAllFilters() {
     setState(() {
       searchQuery = '';
       selectedCategory = 'All';
@@ -153,26 +151,20 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Navigate to product details
-  void navigateToProductDetails(Product product) {
-    Navigator.pushNamed(
-      context,
-      '/product-details',
-      arguments: product,
-    );
+  void _openProduct(Product product) {
+    Navigator.pushNamed(context, '/product-details', arguments: product);
   }
 
-  // Handle logout (used by Drawer)
-  void handleLogout() async {
+  Future<void> _logout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Confirm Logout"),
-        content: const Text("Are you sure you want to logout?"),
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text("Cancel"),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -180,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text("Logout"),
+            child: const Text('Logout'),
           ),
         ],
       ),
@@ -199,23 +191,24 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFF5F5F0),
-      drawer: buildNavDrawer(), // ✅ Left donut/drawer menu
-      appBar: buildAppBar(),
-      body: Column(
-        children: [
-          buildSearchBar(),
-          buildCategoryChips(),
-          buildResultsInfo(),
-          buildProductsGrid(),
-        ],
-      ),
-      // ❌ removed the logout FAB as requested
-      // floatingActionButton: buildLogoutButton(),
+      drawer: _buildNavDrawer(),
+      appBar: _buildAppBar(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? _buildErrorState()
+              : Column(
+                  children: [
+                    _buildSearchBar(),
+                    _buildCategoryChips(),
+                    _buildResultsInfo(),
+                    _buildProductsGrid(),
+                  ],
+                ),
     );
   }
 
-  // Build app bar with title and actions
-  PreferredSizeWidget buildAppBar() {
+  PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -225,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onPressed: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       title: const Text(
-        "Craftique",
+        'Craftique',
         style: TextStyle(
           color: Color(0xFF8B4513),
           fontWeight: FontWeight.bold,
@@ -233,14 +226,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       actions: [
-        buildWishlistIcon(),
-        buildShoppingCartIcon(), // live count + opens cart
+        _buildWishlistIcon(),
+        _buildCartIcon(),
       ],
     );
   }
 
-  // Left side Drawer (donut menu)
-  Widget buildNavDrawer() {
+  Widget _buildNavDrawer() {
     final user = FirebaseAuth.instance.currentUser;
     final displayName = (user?.displayName?.trim().isNotEmpty ?? false)
         ? user!.displayName!
@@ -250,7 +242,6 @@ class _HomeScreenState extends State<HomeScreen> {
       child: SafeArea(
         child: Column(
           children: [
-            // Header with user info
             UserAccountsDrawerHeader(
               decoration: const BoxDecoration(color: Color(0xFF8B4513)),
               accountName: Text(
@@ -266,8 +257,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Icon(Icons.person, color: Color(0xFF8B4513)),
               ),
             ),
-
-            // Nav items
             ListTile(
               leading: const Icon(Icons.favorite_outline),
               title: const Text('Wishlist'),
@@ -284,11 +273,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pushNamed(context, '/cart');
               },
             ),
-
             const Spacer(),
             const Divider(height: 0),
-
-            // Logout at the bottom
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.redAccent),
               title: const Text('Logout',
@@ -296,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () async {
                 Navigator.pop(context);
                 await Future.delayed(const Duration(milliseconds: 150));
-                handleLogout();
+                _logout();
               },
             ),
           ],
@@ -305,11 +291,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build wishlist icon with count
-  Widget buildWishlistIcon() {
+  Widget _buildWishlistIcon() {
     return Consumer<WishlistProvider>(
-      builder: (context, wishlistProvider, child) {
-        final wishlistCount = wishlistProvider.wishlist.length;
+      builder: (context, wishlistProvider, _) {
+        final count = wishlistProvider.wishlist.length;
 
         return GestureDetector(
           onTap: () => Navigator.pushNamed(context, '/wishlist'),
@@ -317,41 +302,39 @@ class _HomeScreenState extends State<HomeScreen> {
             margin: const EdgeInsets.only(right: 8),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: wishlistCount > 0
+              color: count > 0
                   ? const Color(0xFF8B4513).withOpacity(0.1)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(20),
-              border: wishlistCount > 0
+              border: count > 0
                   ? Border.all(color: const Color(0xFF8B4513).withOpacity(0.3))
                   : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.favorite_border,
-                  color: Color(0xFF8B4513),
-                  size: 22,
-                ),
-                if (wishlistCount > 0) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8B4513),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '$wishlistCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                const Icon(Icons.favorite_border,
+                    color: Color(0xFF8B4513), size: 22),
+                if (count > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B4513),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ],
               ],
             ),
           ),
@@ -360,11 +343,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build shopping cart icon with live badge + navigation
-  Widget buildShoppingCartIcon() {
+  Widget _buildCartIcon() {
     return Consumer<CartProvider>(
-      builder: (context, cartProvider, child) {
-        final int cartCount = cartProvider.cartItems.fold<int>(
+      builder: (context, cartProvider, _) {
+        final count = cartProvider.cartItems.fold<int>(
           0,
           (sum, item) => sum + ((item['quantity'] as int?) ?? 1),
         );
@@ -375,41 +357,39 @@ class _HomeScreenState extends State<HomeScreen> {
             margin: const EdgeInsets.only(right: 12),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: cartCount > 0
+              color: count > 0
                   ? const Color(0xFF8B4513).withOpacity(0.1)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(20),
-              border: cartCount > 0
+              border: count > 0
                   ? Border.all(color: const Color(0xFF8B4513).withOpacity(0.3))
                   : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.shopping_cart_outlined,
-                  color: Color(0xFF8B4513),
-                  size: 22,
-                ),
-                if (cartCount > 0) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8B4513),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '$cartCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                const Icon(Icons.shopping_cart_outlined,
+                    color: Color(0xFF8B4513), size: 22),
+                if (count > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B4513),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ],
               ],
             ),
           ),
@@ -418,8 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build search bar
-  Widget buildSearchBar() {
+  Widget _buildSearchBar() {
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -435,34 +414,20 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: TextField(
         controller: _searchController,
-        onChanged: (value) {
-          setState(() {
-            searchQuery = value;
-          });
-        },
+        onChanged: (value) => setState(() => searchQuery = value),
         decoration: InputDecoration(
           hintText: 'Search for crafts...',
-          hintStyle: TextStyle(
-            color: const Color(0xFF8B4513).withOpacity(0.6),
-          ),
-          prefixIcon: const Icon(
-            Icons.search,
-            color: Color(0xFF8B4513),
-          ),
+          hintStyle: TextStyle(color: const Color(0xFF8B4513).withOpacity(0.6)),
+          prefixIcon: const Icon(Icons.search, color: Color(0xFF8B4513)),
           suffixIcon: searchQuery.isNotEmpty
               ? IconButton(
                   onPressed: _clearSearch,
-                  icon: const Icon(
-                    Icons.clear,
-                    color: Color(0xFF8B4513),
-                  ),
+                  icon: const Icon(Icons.clear, color: Color(0xFF8B4513)),
                 )
               : null,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 15,
-          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         ),
         style: const TextStyle(
           color: Color(0xFF8B4513),
@@ -472,14 +437,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build category selection chips
-  Widget buildCategoryChips() {
-    return Container(
+  Widget _buildCategoryChips() {
+    return SizedBox(
       height: 60,
-      padding: const EdgeInsets.symmetric(vertical: 8),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: categories.length,
         itemBuilder: (context, index) {
           final category = categories[index];
@@ -501,11 +464,7 @@ class _HomeScreenState extends State<HomeScreen> {
               side: BorderSide(
                 color: const Color(0xFF8B4513).withOpacity(0.3),
               ),
-              onSelected: (_) {
-                setState(() {
-                  selectedCategory = category;
-                });
-              },
+              onSelected: (_) => setState(() => selectedCategory = category),
             ),
           );
         },
@@ -513,18 +472,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build results info and clear filters option
-  Widget buildResultsInfo() {
+  Widget _buildResultsInfo() {
     final hasFilters = searchQuery.isNotEmpty || selectedCategory != 'All';
-
     if (!hasFilters) return const SizedBox.shrink();
 
-    return Container(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           Text(
-            'Showing ${filteredProducts.length} result${filteredProducts.length != 1 ? 's' : ''}',
+            'Showing ${filteredProducts.length} result${filteredProducts.length == 1 ? '' : 's'}',
             style: TextStyle(
               color: const Color(0xFF8B4513).withOpacity(0.7),
               fontSize: 14,
@@ -532,7 +489,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const Spacer(),
           TextButton(
-            onPressed: clearAllFilters,
+            onPressed: _clearAllFilters,
             child: const Text(
               'Clear filters',
               style: TextStyle(
@@ -546,17 +503,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build products grid or empty state
-  Widget buildProductsGrid() {
+  Widget _buildProductsGrid() {
     return Expanded(
-      child: filteredProducts.isEmpty ? buildEmptyState() : buildProductsList(),
+      child: filteredProducts.isEmpty ? _buildEmptyState() : _buildGrid(),
     );
   }
 
-  // Build empty state when no products found
-  Widget buildEmptyState() {
+  Widget _buildEmptyState() {
     final hasSearch = searchQuery.isNotEmpty;
-    final hasFilters = searchQuery.isNotEmpty || selectedCategory != 'All';
+    final hasFilters = hasSearch || selectedCategory != 'All';
 
     return Center(
       child: Column(
@@ -582,12 +537,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: TextButton(
-                onPressed: clearAllFilters,
+                onPressed: _clearAllFilters,
                 child: const Text(
                   'Clear filters',
-                  style: TextStyle(
-                    color: Color(0xFF8B4513),
-                  ),
+                  style: TextStyle(color: Color(0xFF8B4513)),
                 ),
               ),
             ),
@@ -596,8 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build products list grid
-  Widget buildProductsList() {
+  Widget _buildGrid() {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -612,12 +564,34 @@ class _HomeScreenState extends State<HomeScreen> {
         final product = filteredProducts[index];
         return ProductCard(
           product: product,
-          onTap: () => navigateToProductDetails(product),
+          onTap: () => _openProduct(product),
         );
       },
     );
   }
 
-// (Removed) old logout button
-// Widget buildLogoutButton() { ... }
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 56, color: Colors.redAccent),
+            const SizedBox(height: 12),
+            Text(
+              _error ?? 'Error',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _setupAndLoad,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

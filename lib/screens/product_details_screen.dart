@@ -121,33 +121,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
-  Widget _buildRatingStars(double rating) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(5, (index) {
-        if (index < rating.floor()) {
-          return const Icon(
-            Icons.star,
-            color: Colors.amber,
-            size: 18,
-          );
-        } else if (index < rating) {
-          return const Icon(
-            Icons.star_half,
-            color: Colors.amber,
-            size: 18,
-          );
-        } else {
-          return Icon(
-            Icons.star_border,
-            color: Colors.grey[400],
-            size: 18,
-          );
-        }
-      }),
-    );
-  }
-
   Widget _buildQuantitySelector() {
     return Container(
       decoration: BoxDecoration(

@@ -33,20 +33,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool get isCardPayment =>
       paymentMethod == 'Credit Card' || paymentMethod == 'Debit Card';
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16, top: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF8B4513),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTextField({
     required String label,
     required Function(String?) onSaved,
