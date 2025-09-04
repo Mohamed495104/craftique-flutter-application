@@ -1,7 +1,5 @@
 # Flutter Group Project
 
-## Setup Instructions for Team Members
-
 ### Prerequisites
 - Flutter SDK installed
 - Android Studio installed
