@@ -24,16 +24,3 @@
     - Or set up your own Firebase project and run `flutterfire configure`
 4. **Run the project in chrome**
 
-### Project Structure
-```
-lib/
-├── main.dart              # Main application entry point
-├── firebase_options.dart  # Firebase configuration
-└── ...
-
-android/
-├── app/
-│   ├── google-services.json  # Firebase config (not in git)
-│   └── build.gradle
-└── build.gradle
-```
